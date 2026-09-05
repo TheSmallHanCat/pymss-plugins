@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "pymss plugin: LUFS loudness normalization"
 requires-python = ">=3.10"
 dependencies = [
-    "pymss",
     "pyloudnorm",
 ]
 

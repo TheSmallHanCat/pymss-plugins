@@ -23,6 +23,7 @@ pymss plugins list            # show installed plugins + load status
 | [`dynamics`](./plugins/dynamics) | `compressor`, `limiter`, `expander`, `multiband_compressor`, `deesser` | Dynamics processing (pedalboard) |
 | [`spectral`](./plugins/spectral) | `highpass`/`lowpass`/`bandpass`/`notch`, `peak_eq`, `lowshelf`/`highshelf`, `parametric_eq`, `baxandall_eq` | Filters and parametric EQ (scipy) |
 | [`analysis`](./plugins/analysis) | `measure_lufs`, `measure_true_peak`, `measure_rms`, `measure_dynamic_range`, `spectrum_analyze` | Read-only audio measurement (pyloudnorm) |
+| [`game`](./plugins/game) | `vocal_to_midi` | OpenVPI GAME vocal to MIDI transcription |
 
 ## Write a plugin
 

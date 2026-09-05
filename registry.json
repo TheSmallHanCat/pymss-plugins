@@ -29,5 +29,11 @@
     "subpath": "plugins/analysis",
     "description": "Audio measurement: LUFS, true peak, RMS, dynamic range, spectrum (pyloudnorm)",
     "tags": ["analysis", "measurement", "lufs", "spectrum"]
+  },
+  "game": {
+    "url": "https://github.com/pymss-project/pymss-plugins",
+    "subpath": "plugins/game",
+    "description": "OpenVPI GAME vocal to MIDI transcription model",
+    "tags": ["midi", "transcription", "vocal", "openvpi", "game"]
   }
 }
