@@ -35,5 +35,11 @@
     "subpath": "plugins/game",
     "description": "OpenVPI GAME vocal to MIDI transcription model",
     "tags": ["midi", "transcription", "vocal", "openvpi", "game"]
+  },
+  "asr": {
+    "url": "https://github.com/pymss-project/pymss-plugins",
+    "subpath": "plugins/asr",
+    "description": "Speech-to-text transcription: funasr-mlx on Apple Silicon, funasr (CUDA/CPU) elsewhere",
+    "tags": ["asr", "transcription", "speech", "funasr", "mlx"]
   }
 }

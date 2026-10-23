@@ -1,0 +1,21 @@
+[project]
+name = "pymss-plugin-asr"
+version = "0.1.0"
+description = "pymss plugin: speech-to-text transcription (FunASR on CUDA/CPU, funasr-mlx on Apple Silicon)"
+requires-python = ">=3.10"
+# Backend packages are platform-conditional: MLX only ships macOS arm64 wheels,
+# torch/funasr cover everything else. The pip resolver picks per-platform.
+dependencies = [
+    "numpy",
+    "funasr-mlx>=0.2; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "funasr>=1.2; sys_platform != 'darwin'",
+    "torch>=2.1; sys_platform != 'darwin'",
+    "torchaudio>=2.1; sys_platform != 'darwin'",
+]
+
+[project.entry-points."pymss.plugins"]
+asr = "asr"
+
+[tool.pymss.plugin]
+id = "pymss.asr"
+api_version = 1

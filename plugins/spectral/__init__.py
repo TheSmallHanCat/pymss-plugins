@@ -180,3 +180,53 @@ for _name, _fn in [
     ("baxandall_eq", baxandall_eq),
 ]:
     register_capability(_name, _fn, source="spectral")
+
+
+def setup(plugin):
+    """Protocol v1: expose the most-used filters as Operations."""
+    from pymss.graph.core import audio_to_numpy, numpy_to_audio
+
+    def _wrap(fn):
+        def run(ctx, inputs, params):
+            waveform, sr = audio_to_numpy(inputs["audio"])
+            out = fn(waveform, sr, **params)
+            return {"audio": numpy_to_audio(np.asarray(out, dtype=np.float32), sr)}
+        return run
+
+    plugin.register_operation(
+        id="pymss.spectral.highpass",
+        title="Highpass Filter",
+        description="Remove low frequencies below a cutoff",
+        inputs={"audio": {"type": "audio"}},
+        params={"type": "object", "properties": {
+            "f0": {"type": "number", "default": 80.0, "minimum": 10.0, "maximum": 2000.0},
+            "Q": {"type": "number", "default": 0.707, "minimum": 0.1, "maximum": 8.0},
+        }, "additionalProperties": False},
+        outputs={"audio": {"type": "audio"}},
+        run=_wrap(highpass),
+    )
+    plugin.register_operation(
+        id="pymss.spectral.lowpass",
+        title="Lowpass Filter",
+        description="Remove high frequencies above a cutoff",
+        inputs={"audio": {"type": "audio"}},
+        params={"type": "object", "properties": {
+            "f0": {"type": "number", "default": 8000.0, "minimum": 100.0, "maximum": 20000.0},
+            "Q": {"type": "number", "default": 0.707, "minimum": 0.1, "maximum": 8.0},
+        }, "additionalProperties": False},
+        outputs={"audio": {"type": "audio"}},
+        run=_wrap(lowpass),
+    )
+    plugin.register_operation(
+        id="pymss.spectral.peak_eq",
+        title="Peak EQ",
+        description="Parametric peak filter at a frequency",
+        inputs={"audio": {"type": "audio"}},
+        params={"type": "object", "properties": {
+            "f0": {"type": "number", "default": 1000.0, "minimum": 20.0, "maximum": 20000.0},
+            "gain_db": {"type": "number", "default": 0.0, "minimum": -24.0, "maximum": 24.0},
+            "Q": {"type": "number", "default": 1.0, "minimum": 0.1, "maximum": 8.0},
+        }, "additionalProperties": False},
+        outputs={"audio": {"type": "audio"}},
+        run=_wrap(peak_eq),
+    )

@@ -7,3 +7,7 @@ dependencies = ["scipy"]
 
 [project.entry-points."pymss.plugins"]
 spectral = "spectral"
+
+[tool.pymss.plugin]
+id = "pymss.spectral"
+api_version = 1

@@ -7,3 +7,6 @@ dependencies = ["pyloudnorm", "scipy"]
 
 [project.entry-points."pymss.plugins"]
 analysis = "analysis"
+[tool.pymss.plugin]
+id = "pymss.analysis"
+api_version = 1

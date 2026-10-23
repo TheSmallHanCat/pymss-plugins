@@ -51,3 +51,39 @@ register_capability(
     "time_stretch", time_stretch, source="timing",
     description="Time-stretch by rate without pitch change (librosa phase vocoder)",
 )
+
+
+def setup(plugin):
+    """Protocol v1: expose pitch_shift / time_stretch as Operations."""
+    from pymss.graph.core import audio_to_numpy, numpy_to_audio
+
+    def _wrap(fn, extra_params):
+        def run(ctx, inputs, params):
+            waveform, sr = audio_to_numpy(inputs["audio"])
+            out = fn(waveform, sr, **{k: v for k, v in params.items() if k in extra_params})
+            return {"audio": numpy_to_audio(np.asarray(out, dtype=np.float32), sr)}
+        return run
+
+    plugin.register_operation(
+        id="pymss.timing.pitch_shift",
+        title="Pitch Shift",
+        description="Shift pitch by fractional semitones (duration preserved)",
+        inputs={"audio": {"type": "audio"}},
+        params={"type": "object", "properties": {
+            "n_steps": {"type": "number", "default": 0.0, "minimum": -24.0, "maximum": 24.0},
+            "bins_per_octave": {"type": "integer", "default": 12, "minimum": 1, "maximum": 36},
+        }, "additionalProperties": False},
+        outputs={"audio": {"type": "audio"}},
+        run=_wrap(pitch_shift, {"n_steps", "bins_per_octave"}),
+    )
+    plugin.register_operation(
+        id="pymss.timing.time_stretch",
+        title="Time Stretch",
+        description="Time-stretch by rate without pitch change",
+        inputs={"audio": {"type": "audio"}},
+        params={"type": "object", "properties": {
+            "rate": {"type": "number", "default": 1.0, "minimum": 0.25, "maximum": 4.0},
+        }, "additionalProperties": False},
+        outputs={"audio": {"type": "audio"}},
+        run=_wrap(time_stretch, {"rate"}),
+    )

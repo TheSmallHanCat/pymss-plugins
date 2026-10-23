@@ -116,3 +116,56 @@ for _name, _fn in [
     ("spectrum_analyze", spectrum_analyze),
 ]:
     register_capability(_name, _fn, source="analysis")
+
+
+def setup(plugin):
+    """Protocol v1: expose measurements as read-only Operations."""
+    from pymss.graph.core import audio_to_numpy
+
+    def _measure(fn, param_defs):
+        def run(ctx, inputs, params):
+            waveform, sr = audio_to_numpy(inputs["audio"])
+            kwargs = {k: params[k] for k in param_defs if k in params}
+            result = fn(waveform, sr, **kwargs)
+            return {"report": {k: (float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else v)
+                               for k, v in result.items()}}
+        return run
+
+    plugin.register_operation(
+        id="pymss.analysis.measure_lufs",
+        title="Measure Loudness (LUFS)",
+        description="Integrated loudness per ITU-R BS.1770-4",
+        inputs={"audio": {"type": "audio"}},
+        params={"type": "object", "properties": {}, "additionalProperties": False},
+        outputs={"report": {"type": "object"}},
+        run=_measure(measure_lufs, {}),
+    )
+    plugin.register_operation(
+        id="pymss.analysis.measure_true_peak",
+        title="Measure True Peak",
+        description="True peak (dBTP) and sample peak (dBFS)",
+        inputs={"audio": {"type": "audio"}},
+        params={"type": "object", "properties": {}, "additionalProperties": False},
+        outputs={"report": {"type": "object"}},
+        run=_measure(measure_true_peak, {}),
+    )
+    plugin.register_operation(
+        id="pymss.analysis.measure_rms",
+        title="Measure RMS",
+        description="RMS level in dBFS and linear",
+        inputs={"audio": {"type": "audio"}},
+        params={"type": "object", "properties": {}, "additionalProperties": False},
+        outputs={"report": {"type": "object"}},
+        run=_measure(measure_rms, {}),
+    )
+    plugin.register_operation(
+        id="pymss.analysis.spectrum",
+        title="Spectrum Analyze",
+        description="Average power spectrum (dB magnitudes)",
+        inputs={"audio": {"type": "audio"}},
+        params={"type": "object", "properties": {
+            "n_fft": {"type": "integer", "default": 2048, "minimum": 64, "maximum": 32768},
+        }, "additionalProperties": False},
+        outputs={"report": {"type": "object"}},
+        run=_measure(spectrum_analyze, {"n_fft"}),
+    )

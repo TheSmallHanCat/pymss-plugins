@@ -7,3 +7,6 @@ dependencies = ["librosa"]
 
 [project.entry-points."pymss.plugins"]
 timing = "timing"
+[tool.pymss.plugin]
+id = "pymss.timing"
+api_version = 1

@@ -82,3 +82,26 @@ except Exception:
     # Node registration only works when the graph subsystem is present; the
     # capability above is still usable from the Python API / CLI without it.
     pass
+
+
+def setup(plugin):
+    """Protocol v1: expose lufs_normalize as an Operation for Studio's plugin-ops page."""
+    plugin.register_operation(
+        id="pymss.loudnorm.normalize",
+        title="Normalize Loudness (LUFS)",
+        description=lufs_normalize.__doc__.strip().splitlines()[0],
+        inputs={"audio": {"type": "audio"}},
+        params={"type": "object", "properties": {
+            "target_lufs": {"type": "number", "default": -14.0, "minimum": -70.0, "maximum": -5.0},
+        }, "additionalProperties": False},
+        outputs={"audio": {"type": "audio"}},
+        run=lambda ctx, inputs, params: {"audio": _run_loudnorm(inputs["audio"], params)},
+    )
+
+
+def _run_loudnorm(audio_in, params):
+    from pymss.graph.core import audio_to_numpy, numpy_to_audio
+
+    waveform, sr = audio_to_numpy(audio_in)
+    out = lufs_normalize(waveform, sr, target_lufs=float(params.get("target_lufs", -14.0)))
+    return numpy_to_audio(np.asarray(out, dtype=np.float32), sr)

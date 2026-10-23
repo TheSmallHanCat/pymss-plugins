@@ -137,3 +137,55 @@ for _name, _fn in [
     ("deesser", deesser),
 ]:
     register_capability(_name, _fn, source="dynamics")
+
+
+def setup(plugin):
+    """Protocol v1: expose dynamics processors as Operations."""
+    from pymss.graph.core import audio_to_numpy, numpy_to_audio
+
+    def _wrap(fn, param_defs):
+        def run(ctx, inputs, params):
+            waveform, sr = audio_to_numpy(inputs["audio"])
+            kwargs = {k: params[k] for k in param_defs if k in params}
+            out = fn(waveform, sr, **kwargs)
+            return {"audio": numpy_to_audio(np.asarray(out, dtype=np.float32), sr)}
+        return run
+
+    plugin.register_operation(
+        id="pymss.dynamics.compressor",
+        title="Compressor",
+        description="Feed-forward compressor (pedalboard)",
+        inputs={"audio": {"type": "audio"}},
+        params={"type": "object", "properties": {
+            "threshold_db": {"type": "number", "default": 0.0, "minimum": -60.0, "maximum": 0.0},
+            "ratio": {"type": "number", "default": 4.0, "minimum": 1.0, "maximum": 20.0},
+            "attack_ms": {"type": "number", "default": 1.0, "minimum": 0.1, "maximum": 100.0},
+            "release_ms": {"type": "number", "default": 100.0, "minimum": 1.0, "maximum": 1000.0},
+        }, "additionalProperties": False},
+        outputs={"audio": {"type": "audio"}},
+        run=_wrap(compressor, {"threshold_db", "ratio", "attack_ms", "release_ms"}),
+    )
+    plugin.register_operation(
+        id="pymss.dynamics.limiter",
+        title="Limiter",
+        description="Brick-wall peak limiter (guaranteed ceiling)",
+        inputs={"audio": {"type": "audio"}},
+        params={"type": "object", "properties": {
+            "threshold_db": {"type": "number", "default": -3.0, "minimum": -24.0, "maximum": 0.0},
+        }, "additionalProperties": False},
+        outputs={"audio": {"type": "audio"}},
+        run=_wrap(limiter, {"threshold_db"}),
+    )
+    plugin.register_operation(
+        id="pymss.dynamics.deesser",
+        title="De-esser",
+        description="High-band compressor for sibilance control",
+        inputs={"audio": {"type": "audio"}},
+        params={"type": "object", "properties": {
+            "threshold_db": {"type": "number", "default": 0.0, "minimum": -60.0, "maximum": 0.0},
+            "ratio": {"type": "number", "default": 3.0, "minimum": 1.0, "maximum": 10.0},
+            "crossover_hz": {"type": "number", "default": 6000.0, "minimum": 2000.0, "maximum": 12000.0},
+        }, "additionalProperties": False},
+        outputs={"audio": {"type": "audio"}},
+        run=_wrap(deesser, {"threshold_db", "ratio", "crossover_hz"}),
+    )

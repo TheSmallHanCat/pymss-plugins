@@ -12,3 +12,7 @@ dependencies = [
 
 [project.entry-points."pymss.plugins"]
 game = "game"
+
+[tool.pymss.plugin]
+id = "pymss.game"
+api_version = 1

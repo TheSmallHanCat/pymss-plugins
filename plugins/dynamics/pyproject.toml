@@ -7,3 +7,7 @@ dependencies = ["pedalboard"]
 
 [project.entry-points."pymss.plugins"]
 dynamics = "dynamics"
+
+[tool.pymss.plugin]
+id = "pymss.dynamics"
+api_version = 1
