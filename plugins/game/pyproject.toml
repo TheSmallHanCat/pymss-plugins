@@ -3,9 +3,17 @@ name = "pymss-plugin-game"
 version = "1.0.0"
 description = "pymss plugin: OpenVPI GAME vocal to MIDI transcription"
 requires-python = ">=3.10"
+# Backend packages are platform-conditional: gamemlx (pure MLX) covers Apple
+# Silicon, torch (upstream GAME inference) covers CUDA/CPU machines.
+# gamemlx's metadata pins numpy<2 but its code runs fine on numpy 2.x (verified
+# e2e); the sidecar install uses --no-deps style staging so the host numpy is
+# reused — declared here without the transitive pin.
 dependencies = [
-    "torch",
-    "librosa",
+    "gamemlx>=0.2; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "mido>=1.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "click>=8; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "torch; sys_platform != 'darwin'",
+    "librosa; sys_platform != 'darwin'",
     "numpy",
     "pyyaml",
 ]
@@ -16,3 +24,24 @@ game = "game"
 [tool.pymss.plugin]
 id = "pymss.game"
 api_version = 1
+# gamemlx's wheel metadata pins numpy<2 (conservative; runtime is numpy-2
+# compatible, verified e2e). declared-only: install exactly the list above,
+# ignore transitive metadata, reuse the host numpy.
+dependency_mode = "declared-only"
+
+[[tool.pymss.plugin.contributions.nodes]]
+type = "GameVocalToMidi"
+title = "Vocal to MIDI (GAME)"
+category = "pymss/plugins"
+description = "Transcribe vocals to a MIDI file; outputs the file path"
+inputs = [
+  { name = "audio", type = "AUDIO" },
+]
+outputs = [
+  { name = "midi_path", type = "STRING" },
+]
+widgets = [
+  { name = "tempo", type = "number", default = 120.0, min = 30.0, max = 300.0, step = 1.0 },
+  { name = "language", type = "combo", default = "", options = ["", "zh", "yue", "ja", "en"] },
+  { name = "model_path", type = "text", default = "medium" },
+]

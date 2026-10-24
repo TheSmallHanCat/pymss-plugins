@@ -10,3 +10,34 @@ timing = "timing"
 [tool.pymss.plugin]
 id = "pymss.timing"
 api_version = 1
+
+[[tool.pymss.plugin.contributions.nodes]]
+type = "TimingPitchShift"
+title = "Pitch Shift"
+category = "pymss/plugins"
+description = "Pitch Shift (audio -> audio)"
+inputs = [
+  { name = "audio", type = "AUDIO" },
+]
+outputs = [
+  { name = "audio", type = "AUDIO" },
+]
+widgets = [
+  { name = "n_steps", type = "number", default = 0.0, min = -24.0, max = 24.0, step = 0.5 },
+  { name = "bins_per_octave", type = "number", default = 12.0, min = 1.0, max = 36.0, step = 1.0 }
+]
+
+[[tool.pymss.plugin.contributions.nodes]]
+type = "TimingTimeStretch"
+title = "Time Stretch"
+category = "pymss/plugins"
+description = "Time Stretch (audio -> audio)"
+inputs = [
+  { name = "audio", type = "AUDIO" },
+]
+outputs = [
+  { name = "audio", type = "AUDIO" },
+]
+widgets = [
+  { name = "rate", type = "number", default = 1.0, min = 0.25, max = 4.0, step = 0.05 }
+]

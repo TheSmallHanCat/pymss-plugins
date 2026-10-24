@@ -87,3 +87,59 @@ def setup(plugin):
         outputs={"audio": {"type": "audio"}},
         run=_wrap(time_stretch, {"rate"}),
     )
+
+
+# ---------------------------------------------------------------------------
+# Workflow graph node (manifest [[contributions.nodes]])
+# ---------------------------------------------------------------------------
+
+def _make_processor_node(capability_name, param_names, widget_defaults):
+    """Build signature+execute pair for an audio->audio processor node."""
+    from pymss.graph.core import AUDIO, NodeSignature, PortSpec
+
+    defaults = dict(widget_defaults)
+
+    def signature(node):
+        return NodeSignature(
+            inputs=[PortSpec(name="audio", type=AUDIO)],
+            output_names=["audio"],
+            output_types=[AUDIO],
+        )
+
+    def execute(ctx, inputs):
+        from pymss.graph.core import DAGError, NodeResult, audio_to_numpy, numpy_to_audio
+
+        audio_in = inputs.get("audio")
+        if audio_in is None:
+            raise DAGError(f"{capability_name} requires an AUDIO input")
+        waveform, sr = audio_to_numpy(audio_in)
+        node = ctx.nodes_by_id[ctx.current_node_id]
+        widgets = node.data.get("widgets_values", [])
+        kwargs = {}
+        for index, name in enumerate(param_names):
+            if index < len(widgets) and widgets[index] is not None:
+                kwargs[name] = widgets[index]
+            elif name in defaults:
+                kwargs[name] = defaults[name]
+        fn = ctx.require(capability_name)
+        out = fn(waveform, sr, **kwargs)
+        return NodeResult(outputs={0: numpy_to_audio(np.asarray(out, dtype=np.float32), sr)})
+
+    return signature, execute
+
+
+def _register_graph_nodes():
+    from pymss.plugins import register_node as _rn
+    try:
+        _sig, _exec = _make_processor_node("pitch_shift", ['n_steps', 'bins_per_octave'], {'n_steps': 0.0, 'bins_per_octave': 12})
+        _rn("TimingPitchShift", _exec, signature=_sig, source="timing")
+    except Exception:
+        pass  # graph subsystem absent (capability path still works)
+    try:
+        _sig, _exec = _make_processor_node("time_stretch", ['rate'], {'rate': 1.0})
+        _rn("TimingTimeStretch", _exec, signature=_sig, source="timing")
+    except Exception:
+        pass  # graph subsystem absent (capability path still works)
+
+
+_register_graph_nodes()

@@ -189,3 +189,64 @@ def setup(plugin):
         outputs={"audio": {"type": "audio"}},
         run=_wrap(deesser, {"threshold_db", "ratio", "crossover_hz"}),
     )
+
+
+# ---------------------------------------------------------------------------
+# Workflow graph node (manifest [[contributions.nodes]])
+# ---------------------------------------------------------------------------
+
+def _make_processor_node(capability_name, param_names, widget_defaults):
+    """Build signature+execute pair for an audio->audio processor node."""
+    from pymss.graph.core import AUDIO, NodeSignature, PortSpec
+
+    defaults = dict(widget_defaults)
+
+    def signature(node):
+        return NodeSignature(
+            inputs=[PortSpec(name="audio", type=AUDIO)],
+            output_names=["audio"],
+            output_types=[AUDIO],
+        )
+
+    def execute(ctx, inputs):
+        from pymss.graph.core import DAGError, NodeResult, audio_to_numpy, numpy_to_audio
+
+        audio_in = inputs.get("audio")
+        if audio_in is None:
+            raise DAGError(f"{capability_name} requires an AUDIO input")
+        waveform, sr = audio_to_numpy(audio_in)
+        node = ctx.nodes_by_id[ctx.current_node_id]
+        widgets = node.data.get("widgets_values", [])
+        kwargs = {}
+        for index, name in enumerate(param_names):
+            if index < len(widgets) and widgets[index] is not None:
+                kwargs[name] = widgets[index]
+            elif name in defaults:
+                kwargs[name] = defaults[name]
+        fn = ctx.require(capability_name)
+        out = fn(waveform, sr, **kwargs)
+        return NodeResult(outputs={0: numpy_to_audio(np.asarray(out, dtype=np.float32), sr)})
+
+    return signature, execute
+
+
+def _register_graph_nodes():
+    from pymss.plugins import register_node as _rn
+    try:
+        _sig, _exec = _make_processor_node("compressor", ['threshold_db', 'ratio', 'attack_ms', 'release_ms'], {'threshold_db': 0.0, 'ratio': 4.0, 'attack_ms': 1.0, 'release_ms': 100.0})
+        _rn("DynamicsCompressor", _exec, signature=_sig, source="dynamics")
+    except Exception:
+        pass  # graph subsystem absent (capability path still works)
+    try:
+        _sig, _exec = _make_processor_node("limiter", ['threshold_db', 'release_ms'], {'threshold_db': -3.0, 'release_ms': 100.0})
+        _rn("DynamicsLimiter", _exec, signature=_sig, source="dynamics")
+    except Exception:
+        pass  # graph subsystem absent (capability path still works)
+    try:
+        _sig, _exec = _make_processor_node("deesser", ['threshold_db', 'ratio', 'crossover_hz'], {'threshold_db': 0.0, 'ratio': 3.0, 'crossover_hz': 6000.0})
+        _rn("DynamicsDeEsser", _exec, signature=_sig, source="dynamics")
+    except Exception:
+        pass  # graph subsystem absent (capability path still works)
+
+
+_register_graph_nodes()

@@ -10,3 +10,38 @@ analysis = "analysis"
 [tool.pymss.plugin]
 id = "pymss.analysis"
 api_version = 1
+
+[[tool.pymss.plugin.contributions.views]]
+id = "spectrum"
+title = "频谱分析 (SDK Demo)"
+entry = "views/spectrum/index.html"
+placements = ["tool"]
+operation = "pymss.analysis.spectrum"
+permissions = ["operations", "files"]
+
+[[tool.pymss.plugin.contributions.nodes]]
+type = "AnalysisMeasureLUFS"
+title = "Measure Loudness (LUFS)"
+category = "pymss/plugins"
+description = "Integrated loudness measurement (ITU-R BS.1770-4)"
+inputs = [{ name = "audio", type = "AUDIO" }]
+outputs = [{ name = "value", type = "STRING" }]
+widgets = []
+
+[[tool.pymss.plugin.contributions.nodes]]
+type = "AnalysisTruePeak"
+title = "Measure True Peak"
+category = "pymss/plugins"
+description = "True-peak level measurement (dBTP)"
+inputs = [{ name = "audio", type = "AUDIO" }]
+outputs = [{ name = "value", type = "STRING" }]
+widgets = []
+
+[[tool.pymss.plugin.contributions.nodes]]
+type = "AnalysisRMS"
+title = "Measure RMS"
+category = "pymss/plugins"
+description = "RMS level measurement (dB)"
+inputs = [{ name = "audio", type = "AUDIO" }]
+outputs = [{ name = "value", type = "STRING" }]
+widgets = []
