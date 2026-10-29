@@ -169,3 +169,46 @@ def setup(plugin):
         outputs={"report": {"type": "object"}},
         run=_measure(spectrum_analyze, {"n_fft"}),
     )
+
+
+# ---------------------------------------------------------------------------
+# Workflow graph nodes: audio -> measurement (STRING output)
+# ---------------------------------------------------------------------------
+
+_ANALYSIS_NODE_SPECS = [
+    ("AnalysisMeasureLUFS", "Measure Loudness (LUFS)", "measure_lufs", "lufs"),
+    ("AnalysisTruePeak", "Measure True Peak", "measure_true_peak", "true_peak_dbtp"),
+    ("AnalysisRMS", "Measure RMS", "measure_rms", "rms_dbfs"),
+]
+
+
+def _register_graph_nodes():
+    from pymss.graph.core import AUDIO, STRING, NodeSignature, PortSpec
+    from pymss.plugins import register_node
+
+    for node_type, _title, cap, key in _ANALYSIS_NODE_SPECS:
+        def signature(node, _cap=cap):
+            return NodeSignature(
+                inputs=[PortSpec(name="audio", type=AUDIO)],
+                output_names=["value"],
+                output_types=[STRING],
+            )
+
+        def execute(ctx, inputs, _cap=cap, _key=key, _type=node_type):
+            from pymss.graph.core import DAGError, NodeResult, StringArtifact, audio_to_numpy
+
+            audio_in = inputs.get("audio")
+            if audio_in is None:
+                raise DAGError(f"{_type} requires an AUDIO input")
+            waveform, sr = audio_to_numpy(audio_in)
+            result = ctx.require(_cap)(waveform, sr)
+            value = result.get(_key) if isinstance(result, dict) else result
+            return NodeResult(outputs={0: StringArtifact(str(value))})
+
+        try:
+            register_node(node_type, execute, signature=signature, source="analysis")
+        except Exception:
+            pass
+
+
+_register_graph_nodes()

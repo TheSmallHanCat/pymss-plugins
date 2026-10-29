@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="../../../sdk/pymss-sdk.css">
+  <script src="../../../sdk/pymss-sdk.js"></script>
+</head>
+<body>
+  <div class="pymss-card">
+    <h3 class="pymss-title">频谱分析</h3>
+    <p class="pymss-subtitle">Studio 主题自动跟随 · SDK 演示页</p>
+    <div class="pymss-row" style="margin-bottom:10px">
+      <button class="pymss-btn pymss-btn--primary" id="pick">选择音频</button>
+      <button class="pymss-btn" id="run" disabled>分析</button>
+      <span class="pymss-muted" id="file">未选择文件</span>
+    </div>
+    <div class="pymss-progress"><i id="bar"></i></div>
+    <div class="pymss-code" id="out" style="margin-top:10px">等待运行…</div>
+  </div>
+<script>
+let picked = null
+pick.onclick = async () => {
+  const r = await pymss.pickAudio()
+  if (r && r.path) { picked = r.path; file.textContent = picked; run.disabled = false }
+}
+run.onclick = async () => {
+  out.textContent = '运行中…'
+  try {
+    const result = await pymss.startOperation('pymss.analysis.spectrum', { n_fft: 2048 }, { audio: { kind: 'file', path: picked } }, (p) => {
+      if (p.completed != null && p.total) bar.style.width = Math.round(100 * p.completed / p.total) + '%'
+    })
+    out.textContent = JSON.stringify(result, null, 2).slice(0, 2000)
+    bar.style.width = '100%'
+  } catch (e) { out.textContent = '错误: ' + e.message }
+}
+</script>
+</body>
+</html>
