@@ -7,11 +7,13 @@ OpenVPI GAME (General Audio Manipulation and Estimation v1.0.0) vocal to MIDI tr
 - High accuracy vocal melody extraction into standard MIDI format (.mid).
 - Dynamic chunking with integrated silence slicer.
 - Registers `vocal_to_midi` capability into pymss plugin pool.
+- Uses a local GAME `.pt` checkpoint on every platform. Select the downloaded checkpoint in Studio; the backend selects CUDA, MPS, or CPU according to availability.
+- Passes the selected vocal language to checkpoints that provide a language map.
 
 ## Installation
 
 ```sh
-pymss install game
+pymss install pymss.game
 ```
 
 ## Usage in Python

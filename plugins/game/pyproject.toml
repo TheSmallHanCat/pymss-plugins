@@ -1,6 +1,6 @@
 [project]
 name = "pymss-plugin-game"
-version = "1.0.0"
+version = "1.2.0"
 description = "pymss plugin: OpenVPI GAME vocal to MIDI transcription"
 requires-python = ">=3.10"
 dependencies = [
@@ -10,9 +10,64 @@ dependencies = [
     "pyyaml",
 ]
 
-[project.entry-points."pymss.plugins"]
-game = "game"
-
 [tool.pymss.plugin]
 id = "pymss.game"
-api_version = 1
+api_version = 2
+requires_pymss = ">=2.2"
+
+[[tool.pymss.plugin.operations]]
+id = "pymss.game.vocal_to_midi"
+title = "Vocal to MIDI (GAME)"
+
+[[tool.pymss.plugin.operations]]
+id = "pymss.game.tool"
+title = "Vocal to MIDI"
+
+[tool.pymss.studio]
+
+sdk_version = 1
+required_capabilities = [
+    "app.info",
+    "audio.analyze",
+    "files.pickAudio",
+    "files.pickDirectory",
+    "files.pickModel",
+    "files.reveal",
+    "operations.cancel",
+    "operations.start",
+    "settings.read",
+    "settings.write",
+    "shell.openExternal",
+    "ui.overlay",
+]
+backends = ["torch"]
+tags = ["midi", "transcription", "vocal", "openvpi", "game"]
+category = "recognize"
+icon = "MusicalNoteOutline"
+
+[tool.pymss.studio.locales."en"]
+title = "Vocal to MIDI"
+description = "Extract vocal pitch and note timing and export MIDI."
+
+[tool.pymss.studio.locales."en".operations]
+"pymss.game.vocal_to_midi" = "Vocal to MIDI (GAME)"
+"pymss.game.tool" = "Vocal to MIDI"
+
+[tool.pymss.studio.locales."zh-CN"]
+title = "歌声转 MIDI"
+description = "提取独唱音高与音符时值，导出 MIDI。"
+tags = ["歌声", "音符", "MIDI"]
+
+[tool.pymss.studio.locales."zh-CN".operations]
+"pymss.game.vocal_to_midi" = "歌声音符转写"
+"pymss.game.tool" = "歌声转 MIDI"
+
+[[tool.pymss.studio.views]]
+id = "tool"
+title = "Midi"
+entry = "ui/dist/index.html"
+component = "ui/src/MidiTool.vue"
+placements = ["tool"]
+operation = "pymss.game.tool"
+permissions = ["ui.overlay", "files", "settings", "app.info", "clipboard.writeText", "operations", "audio.analyze", "shell.openExternal"]
+file_tool = "midi"
