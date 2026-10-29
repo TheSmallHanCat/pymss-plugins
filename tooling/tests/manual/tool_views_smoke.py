@@ -16,6 +16,10 @@ ROOT = Path(__file__).resolve().parents[3]
 HOST = """({specs,url,dark}) => {
  const frame=document.createElement('iframe');frame.id='plugin';frame.sandbox='allow-scripts allow-forms';frame.style.cssText='border:0;width:100%;height:640px';
  const state=window.bridge={requests:[],held:[],holdDescriptions:false,rejectDescription:false,rejectNext:false,active:null};
+ const sdk={sdkVersion:1,capabilities:[
+  'app.info','files.pickAudio','files.reveal','operations.describe',
+  'operations.start','operations.cancel','settings.read','settings.write','ui.overlay',
+ ]};
  window.reply=(id,result)=>frame.contentWindow.postMessage({jsonrpc:'2.0',id,result},'*');
  window.notify=(method,params)=>frame.contentWindow.postMessage({jsonrpc:'2.0',method,params},'*');
  window.addEventListener('message',event=>{
@@ -29,7 +33,7 @@ HOST = """({specs,url,dark}) => {
     if(state.overlay){state.previousStyle=frame.style.cssText;frame.style.cssText='position:fixed;inset:0;z-index:3000;border:0;width:100vw;height:100vh'}
     else if(state.previousStyle)frame.style.cssText=state.previousStyle;
   }
-  else if(data.method==='app.info')reply(data.id,{locale:'zh-CN',defaultOutputDir:'/output'});
+  else if(data.method==='app.info')reply(data.id,{...sdk,locale:'zh-CN',defaultOutputDir:'/output'});
   else if(data.method==='settings.read')reply(data.id,{});
   else if(data.method==='settings.write')reply(data.id,data.params.data);
   else if(data.method==='operations.describe'){

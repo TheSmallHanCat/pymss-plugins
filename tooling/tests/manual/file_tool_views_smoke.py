@@ -52,6 +52,13 @@ HOST = r"""({url, dark, platform, machine}) => {
   frame.id = 'plugin'; frame.sandbox = 'allow-scripts allow-forms';
   frame.style.cssText = 'border:0;width:100%;height:920px';
   const state = window.bridge = { requests: [], active: null, settings: { mergeSortBy: 'name', asrPreset:'fun-asr-nano' }, cancelNext: false, componentInstalled:true };
+  const sdk = {sdkVersion:1, capabilities:[
+    'app.info', 'audio.analyze', 'clipboard.writeText', 'files.pickAudio',
+    'files.pickDirectory', 'files.pickModel', 'files.reveal', 'files.scanAudio',
+    'models.deleteTool', 'operations.cancel', 'operations.start',
+    'runtime.packageStatus', 'runtime.managePackage', 'settings.read',
+    'settings.write', 'shell.openExternal', 'ui.overlay',
+  ]};
   const componentStatus = () => ({package:'funasr',requirement:'funasr',installed:state.componentInstalled,present:state.componentInstalled,version:state.componentInstalled?'1.3.0':null,source:state.componentInstalled?'managed':null,canUninstall:state.componentInstalled,runtimeIdentity:'cpu'});
   const send = message => frame.contentWindow.postMessage(message, '*');
   const reply = (id, result) => send({jsonrpc:'2.0', id, result});
@@ -78,7 +85,7 @@ HOST = r"""({url, dark, platform, machine}) => {
       state.overlay = request.params.open;
       if (state.overlay) {state.previousStyle = frame.style.cssText; frame.style.cssText = 'position:fixed;inset:0;z-index:3000;border:0;width:100vw;height:100vh';}
       else if (state.previousStyle) frame.style.cssText = state.previousStyle;
-    } else if (request.method === 'app.info') reply(request.id, {studio:'pymss-studio',version:'test',locale:'en',defaultOutputDir:'/output',defaultModelDir:'/models',runtimeInfo:{platform,machine,backend:'cpu',packages:{funasr:'1.3.0'}}});
+    } else if (request.method === 'app.info') reply(request.id, {...sdk,studio:'pymss-studio',version:'test',locale:'en',defaultOutputDir:'/output',defaultModelDir:'/models',runtimeInfo:{platform,machine,backend:'cpu',packages:{funasr:'1.3.0'}}});
     else if (request.method === 'settings.read') reply(request.id, state.settings);
     else if (request.method === 'settings.write') { state.settings = request.params.data; reply(request.id, state.settings); }
     else if (request.method === 'files.pickAudio') reply(request.id, request.params.multiple ? {paths:['/audio/source.wav','/audio/second.wav']} : {path:'/audio/source.wav'});

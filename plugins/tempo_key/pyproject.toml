@@ -44,5 +44,5 @@ title = "Tempo Key"
 entry = "ui/dist/index.html"
 component = "ui/src/TempoKeyTool.vue"
 placements = ["tool"]
-permissions = ["ui.overlay", "files", "settings", "app.info", "clipboard.writeText", "audio.analyze"]
+permissions = ["ui.overlay", "files", "settings", "app.info", "clipboard.writeText", "audio.analyze", "operations.cancel"]
 file_tool = "tempo_key"

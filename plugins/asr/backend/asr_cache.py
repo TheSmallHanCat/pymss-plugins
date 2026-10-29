@@ -52,6 +52,8 @@ def _declared_model_files(configuration_path: Path) -> list[Path] | None:
         configuration = json.loads(configuration_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
         return None
+    if not isinstance(configuration, dict):
+        return None
     file_metas = configuration.get("file_path_metas")
     if file_metas is None:
         return []

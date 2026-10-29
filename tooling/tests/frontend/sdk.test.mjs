@@ -14,6 +14,10 @@ async function host(t, saved = {}) {
   const scope = effectScope()
   t.after(() => scope.stop())
   const exports = {}, calls = [], callbacks = {}
+  const requirements = {
+    sdkVersion: 1,
+    requiredCapabilities: ['app.info', 'operations.start', 'settings.read', 'settings.write'],
+  }
   let settings = saved
   const receive = message => callbacks.message({ source: parent, data: message })
   const parent = { postMessage(message) {
@@ -22,7 +26,10 @@ async function host(t, saved = {}) {
     calls.push(request)
     queueMicrotask(() => {
       if (request.method === 'pymss.ready') return receive({ jsonrpc: '2.0', method: 'host.ready' })
-      const result = request.method === 'app.info' ? { locale: 'en', defaultOutputDir: '/output' }
+      const result = request.method === 'app.info' ? {
+        sdkVersion: requirements.sdkVersion, capabilities: requirements.requiredCapabilities,
+        locale: 'en', defaultOutputDir: '/output',
+      }
         : request.method === 'settings.read' ? settings
         : request.method === 'settings.write' ? (settings = request.params.data) : { ok: true }
       receive({ jsonrpc: '2.0', id: request.id, result })
@@ -32,6 +39,7 @@ async function host(t, saved = {}) {
   scope.run(() => vm.runInNewContext(code, {
     exports, window, structuredClone, ref, watch, setTimeout, clearTimeout,
     presentation: {}, useSettingsStore: () => ({}), __FILE_TOOL__: 'slicer', __OPERATION_ID__: 'pymss.slicer.tool',
+    __STUDIO_REQUIREMENTS__: requirements,
   }))
   await exports.connect()
   return { sdk: exports, calls, scope }
