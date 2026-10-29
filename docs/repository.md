@@ -41,9 +41,11 @@ pymss install ./plugins/loudnorm
 pymss plugins list
 ```
 
-Plugin ids (for example `pymss install pymss.loudnorm`) use the registry configured in pymss. Every package uses the pymss v2 manifest and installs into a directory named after its plugin id. This checkout's `registry.json` points at `TheSmallHanCat/pymss-plugins`; unpublished local changes are available only through a local source installation or the staged Studio resources.
+Plugin ids (for example `pymss install pymss.loudnorm`) use the registry configured in pymss. Every package uses the pymss v2 manifest and installs into a directory named after its plugin id. This checkout's `registry.json` points at the official `pymss-project/pymss-plugins` repository; unpublished local changes are available only through a local source installation or the staged Studio resources.
 
 Each package declares dependencies in `pyproject.toml`. Studio's managed installer resolves and validates them. Offline preinstalled ASR and loudness views explicitly defer dependency checks only for the file-tool Operations that own their backend checks; their original Operations still require the declared dependencies.
+
+ASR declares `runtime_packages = ["funasr"]` in `[tool.pymss.studio]` so all its Operations can use the optional ASR components installed by Studio. The host selects FunASR on Windows, Linux and Intel macOS, or `funasr-mlx` on Apple Silicon. This package-wide activation is separate from `deferred_dependency_operations`, which only postpones dependency validation for the named Operations and does not select component directories.
 
 ## Plugin author reference
 

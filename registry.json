@@ -3,7 +3,7 @@
   "pymss.analysis": {
     "id": "pymss.analysis",
     "api_version": 2,
-    "url": "https://github.com/TheSmallHanCat/pymss-plugins",
+    "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/analysis",
     "ref": "main",
     "version": "0.2.0",
@@ -69,7 +69,7 @@
   "pymss.asr": {
     "id": "pymss.asr",
     "api_version": 2,
-    "url": "https://github.com/TheSmallHanCat/pymss-plugins",
+    "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/asr",
     "ref": "main",
     "version": "0.3.0",
@@ -138,7 +138,7 @@
   "pymss.convert": {
     "id": "pymss.convert",
     "api_version": 2,
-    "url": "https://github.com/TheSmallHanCat/pymss-plugins",
+    "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/convert",
     "ref": "main",
     "version": "0.2.0",
@@ -197,7 +197,7 @@
   "pymss.dynamics": {
     "id": "pymss.dynamics",
     "api_version": 2,
-    "url": "https://github.com/TheSmallHanCat/pymss-plugins",
+    "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/dynamics",
     "ref": "main",
     "version": "0.2.0",
@@ -261,7 +261,7 @@
   "pymss.game": {
     "id": "pymss.game",
     "api_version": 2,
-    "url": "https://github.com/TheSmallHanCat/pymss-plugins",
+    "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/game",
     "ref": "main",
     "version": "1.2.0",
@@ -328,7 +328,7 @@
   "pymss.inspect": {
     "id": "pymss.inspect",
     "api_version": 2,
-    "url": "https://github.com/TheSmallHanCat/pymss-plugins",
+    "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/inspect",
     "ref": "main",
     "version": "0.2.0",
@@ -383,7 +383,7 @@
   "pymss.loudnorm": {
     "id": "pymss.loudnorm",
     "api_version": 2,
-    "url": "https://github.com/TheSmallHanCat/pymss-plugins",
+    "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/loudnorm",
     "ref": "main",
     "version": "0.4.0",
@@ -444,7 +444,7 @@
   "pymss.merge": {
     "id": "pymss.merge",
     "api_version": 2,
-    "url": "https://github.com/TheSmallHanCat/pymss-plugins",
+    "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/merge",
     "ref": "main",
     "version": "0.2.0",
@@ -499,7 +499,7 @@
   "pymss.sdr": {
     "id": "pymss.sdr",
     "api_version": 2,
-    "url": "https://github.com/TheSmallHanCat/pymss-plugins",
+    "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/sdr",
     "ref": "main",
     "version": "0.2.0",
@@ -553,7 +553,7 @@
   "pymss.slicer": {
     "id": "pymss.slicer",
     "api_version": 2,
-    "url": "https://github.com/TheSmallHanCat/pymss-plugins",
+    "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/slicer",
     "ref": "main",
     "version": "0.2.0",
@@ -610,7 +610,7 @@
   "pymss.spectral": {
     "id": "pymss.spectral",
     "api_version": 2,
-    "url": "https://github.com/TheSmallHanCat/pymss-plugins",
+    "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/spectral",
     "ref": "main",
     "version": "0.2.0",
@@ -674,7 +674,7 @@
   "pymss.tempo_key": {
     "id": "pymss.tempo_key",
     "api_version": 2,
-    "url": "https://github.com/TheSmallHanCat/pymss-plugins",
+    "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/tempo_key",
     "ref": "main",
     "version": "0.2.0",
@@ -723,7 +723,7 @@
   "pymss.timing": {
     "id": "pymss.timing",
     "api_version": 2,
-    "url": "https://github.com/TheSmallHanCat/pymss-plugins",
+    "url": "https://github.com/pymss-project/pymss-plugins",
     "subpath": "plugins/timing",
     "ref": "main",
     "version": "0.2.0",

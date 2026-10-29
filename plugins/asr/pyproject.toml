@@ -8,9 +8,9 @@ requires-python = ">=3.10"
 dependencies = [
     "numpy",
     "funasr-mlx>=0.2; sys_platform == 'darwin' and platform_machine == 'arm64'",
-    "funasr>=1.2; sys_platform != 'darwin'",
-    "torch>=2.1; sys_platform != 'darwin'",
-    "torchaudio>=2.1; sys_platform != 'darwin'",
+    "funasr>=1.2; sys_platform != 'darwin' or platform_machine != 'arm64'",
+    "torch>=2.1; sys_platform != 'darwin' or platform_machine != 'arm64'",
+    "torchaudio>=2.1; sys_platform != 'darwin' or platform_machine != 'arm64'",
 ]
 
 [tool.pymss.plugin]
@@ -48,6 +48,7 @@ backends = ["torch", "mlx"]
 tags = ["asr", "transcription", "speech", "funasr", "mlx"]
 category = "recognize"
 icon = "MicOutline"
+runtime_packages = ["funasr"]
 deferred_dependency_operations = ["pymss.asr.tool"]
 
 [tool.pymss.studio.locales."en"]

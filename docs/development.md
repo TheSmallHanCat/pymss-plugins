@@ -28,7 +28,7 @@
 | 表 | 读取方 | 内容 |
 | --- | --- | --- |
 | `[tool.pymss.plugin]` | pymss（CLI、工作流、Studio Worker） | `id`、`api_version`、`requires_pymss`、`entry`、`dependencies`、`operations`、`contributions.graphs/nodes` |
-| `[tool.pymss.studio]` | Studio 与本仓库构建脚本 | SDK 与运行环境要求、`category`、`icon`、`tags`、`locales`、`views`、`deferred_dependency_operations`、`build_script` |
+| `[tool.pymss.studio]` | Studio 与本仓库构建脚本 | SDK 与运行环境要求、`category`、`icon`、`tags`、`locales`、`views`、`runtime_packages`、`deferred_dependency_operations`、`build_script` |
 
 后端公共代码使用 `pymss.plugins.kit`，不要在插件里复制协议或文件工具代码：`register_tool` 注册文件工具 Operation，`emit` 上报结构化进度（宿主通过 `report_progress(..., event=...)` 接收），`require_file`、`render_output`、`run_ffmpeg` 等处理路径与外部进程。capability、workflow node 在 `setup(plugin)` 中通过 `plugin.register_*` 注册，不在 import 时产生副作用。
 
@@ -63,6 +63,12 @@ required_capabilities = [
 例如 GAME 声明 `backends = ["torch"]`；ASR 声明 `backends = ["torch", "mlx"]`。这表示框架存在，不表示 CUDA、MPS 等设备可用，也不表示模型或 FunASR 等可选组件已经安装。平台字段不替代 Python 依赖的环境标记；插件仍应在执行时检查设备、组件和模型的实际状态。
 
 Studio 在安装和打开页面前检查要求。官方目录生成器把它们写入每个条目的 `requirements`，字段名为 `sdkVersion`、`requiredCapabilities`、`platforms`、`architectures` 和 `backends`，使市场也能展示不兼容原因。
+
+使用 Studio 管理的可选组件时，在 `[tool.pymss.studio]` 声明包级 `runtime_packages`。例如 ASR 使用 `runtime_packages = ["funasr"]`，使同一插件的所有 Operation 都能读取 Studio 已安装的 ASR 组件；宿主在 Windows、Linux 和 Intel macOS 上选择 FunASR，在 Apple Silicon 上选择 `funasr-mlx`。这里只能填写宿主支持的组件标识，不是任意 Python 包安装接口。
+
+宿主先校验清单并解析插件依赖，只有通过解析的插件才会在实际加载时激活组件目录。导入或注册失败时，撤销本次新增的组件路径，并按完整包树清理本次导入的组件模块及其新增子模块，避免父子模块缓存失配；激活前已有的路径与模块保留。
+
+`deferred_dependency_operations` 单独控制哪些 Operation 可以延迟依赖校验，适用于操作自身负责检查组件并返回安装引导的场景。它不决定加载哪些可选组件。ASR 只为 `pymss.asr.tool` 延迟校验；`pymss.asr.transcribe` 仍校验所需依赖，但两者共享包级声明的已安装组件。
 
 ## 插件语言文件
 
