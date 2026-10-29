@@ -66,3 +66,18 @@ placements = ["tool"]
 operation = "pymss.loudnorm.tool"
 permissions = ["ui.overlay", "files", "settings", "app.info", "clipboard.writeText", "operations"]
 file_tool = "loudness"
+
+[[tool.pymss.plugin.contributions.nodes]]
+type = "NormalizeLUFS"
+title = "Normalize Loudness (LUFS)"
+category = "pymss/plugins"
+description = "LUFS integrated-loudness normalization (broadcast/streaming standard)"
+inputs = [
+  { name = "audio", type = "AUDIO" },
+]
+outputs = [
+  { name = "audio", type = "AUDIO" },
+]
+widgets = [
+  { name = "target_lufs", type = "number", default = -14.0, min = -70.0, max = -5.0, step = 0.5 },
+]

@@ -321,7 +321,8 @@
       "platforms": [],
       "architectures": [],
       "backends": [
-        "torch"
+        "torch",
+        "mlx"
       ]
     }
   },

@@ -184,7 +184,7 @@ class WorkerToolsTests(unittest.TestCase):
         self.assertEqual(call["model_path"], model_path.resolve())
         self.assertEqual(call["audio_path"], input_path.resolve())
         self.assertEqual(call["tempo"], 128)
-        self.assertNotIn("language", call)
+        self.assertEqual(call["language"], "zh")
         self.assertTrue(callable(call["progress_callback"]))
         self.assertEqual(result["outputPath"], str(output_path.resolve()))
         self.assertEqual(result["noteCount"], 12)

@@ -115,6 +115,9 @@
     "vocalAudio": "Vocal audio",
     "waiting": "Configure the tool to begin",
     "waitingForProgress": "Preparing processing resources",
-    "workerProtocolError": "Worker communication parsing failed after non-protocol output was detected: “{output}”. Restart the application and try again; open the full debug log if the problem persists."
+    "workerProtocolError": "Worker communication parsing failed after non-protocol output was detected: “{output}”. Restart the application and try again; open the full debug log if the problem persists.",
+    "midiMlxLocalModel": "Use a local MLX model",
+    "midiMlxModelHint": "Apple Silicon uses MLX inference. The selected model is downloaded on first use.",
+    "midiMlxChooseDirectory": "Choose an MLX model directory"
   }
 }

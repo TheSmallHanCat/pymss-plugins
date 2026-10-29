@@ -41,7 +41,6 @@ def _normalize_lufs_signature(node):
     return NodeSignature(
         inputs=[
             PortSpec(name="audio", type=AUDIO),
-            PortSpec(name="target_lufs", type="FLOAT"),
         ],
         output_names=["audio"],
         output_types=[AUDIO],

@@ -45,11 +45,11 @@ class ToolPluginTests(unittest.TestCase):
                 read_manifest(directory)
                 data = tomllib.loads((directory / "pyproject.toml").read_text(encoding="utf-8"))
                 views = data["tool"]["pymss"]["studio"]["views"]
-                self.assertEqual(len(views), 1)
-                view = views[0]
+                self.assertEqual({view['id'] for view in views}, {'tool', 'spectrum'} if directory.name == 'analysis' else {'tool'})
+                view = next(view for view in views if view['id'] == 'tool')
                 self.assertEqual(view["placements"], ["tool"])
                 self.assertIn("audio.analyze" if directory.name == "tempo_key" else "operations", view["permissions"])
-                self.assertTrue(set(view["permissions"]) <= {"ui.overlay", "operations", "files", "files.pickAudio", "settings", "app.info", "clipboard.writeText", "audio.analyze", "runtime", "models.deleteTool", "shell.openExternal"})
+                self.assertTrue(set(view["permissions"]) <= {"ui.overlay", "operations", "operations.cancel", "files", "files.pickAudio", "settings", "app.info", "clipboard.writeText", "audio.analyze", "runtime", "models.deleteTool", "shell.openExternal"})
                 entry = directory / view["entry"]
                 self.assertTrue(entry.is_file())
                 html = entry.read_text(encoding="utf-8")
@@ -110,7 +110,7 @@ class ToolPluginTests(unittest.TestCase):
             ("pymss.timing.time_stretch", {"rate": 0}),
             ("pymss.spectral.peak_eq", {"gain_db": 99}),
             ("pymss.analysis.spectrum", {"n_fft": 2.5}),
-            ("pymss.game.vocal_to_midi", {}),
+            ("pymss.game.vocal_to_midi", {"tempo": 0}),
         ]:
             with self.subTest(operation=operation), self.assertRaises(OperationError):
                 self.runtime.run(operation, inputs={"audio": self.audio()}, params=params)

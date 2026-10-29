@@ -12,7 +12,7 @@ from pymss.plugins.kit import emit, isolate_stdout as isolate_protocol_stdout
 from .asr_cache import is_complete_asr_model_cache, unresolved_incomplete_files
 from pymss.plugins.kit import (
     ToolError as AudioToolError,
-    available_path as _available_path,
+    render_output,
     require_directory as _require_directory,
     require_file as _require_file,
 )
@@ -627,19 +627,19 @@ def _transcribe_audio(payload: dict[str, Any]) -> dict[str, Any]:
         if output_format == "srt" and not sentences:
             warnings.append("timestamps_unavailable")
             continue
-        output_path = _available_path(base.with_suffix(f".{output_format}"))
+        output_path = base.with_suffix(f".{output_format}")
         if output_format == "txt":
-            output_path.write_text(transcript + "\n", encoding="utf-8")
+            output_path = render_output(output_path, lambda target: target.write_text(transcript + "\n", encoding="utf-8"))
         elif output_format == "json":
-            output_path.write_text(json.dumps({
+            output_path = render_output(output_path, lambda target: target.write_text(json.dumps({
                 "inputPath": str(input_path), "text": transcript,
                 "modelPreset": configuration["id"],
                 "requestedLanguage": configuration["language"],
                 "detectedLanguage": detected_language,
                 "sentences": sentences, "raw": results,
-            }, ensure_ascii=False, indent=2, default=_json_default), encoding="utf-8")
+            }, ensure_ascii=False, indent=2, default=_json_default), encoding="utf-8"))
         else:
-            _write_srt(output_path, sentences)
+            output_path = render_output(output_path, lambda target: _write_srt(target, sentences))
         output_paths.append(str(output_path))
         completed += 1
         emit("audio_tool_progress", {
@@ -663,7 +663,7 @@ def _transcribe_audio_mlx(payload: dict[str, Any], input_path: Path, output_dir:
     emit("audio_tool_progress", {"operation": "asr", "phase": "loading_asr_model", "completed": 0, "total": 1, "current": str(configuration["id"])})
     try:
         with isolate_protocol_stdout():
-            raw = transcribe_mlx(input_path, str(configuration["id"]), str(payload.get("modelPath") or "") or None, str(payload.get("modelDir") or "") or None)
+            raw = transcribe_mlx(input_path, str(configuration["id"]), str(payload.get("modelPath") or "") or None, str(payload.get("modelDir") or "") or None, language=configuration["language"])
     except ImportError as error:
         raise RuntimeError("The FunASR MLX runtime component could not be loaded. Install it from Tools > ASR transcription.") from error
     transcript = str(raw.get("text") or "").strip()
@@ -678,11 +678,11 @@ def _transcribe_audio_mlx(payload: dict[str, Any], input_path: Path, output_dir:
         if output_format == "srt":
             warnings.append("timestamps_unavailable")
             continue
-        output_path = _available_path(base.with_suffix(f".{output_format}"))
+        output_path = base.with_suffix(f".{output_format}")
         if output_format == "txt":
-            output_path.write_text(transcript + "\n", encoding="utf-8")
+            output_path = render_output(output_path, lambda target: target.write_text(transcript + "\n", encoding="utf-8"))
         else:
-            output_path.write_text(json.dumps({"inputPath": str(input_path), "text": transcript, "modelPreset": configuration["id"], "requestedLanguage": configuration["language"], "detectedLanguage": "", "sentences": [], "raw": [raw]}, ensure_ascii=False, indent=2, default=_json_default), encoding="utf-8")
+            output_path = render_output(output_path, lambda target: target.write_text(json.dumps({"inputPath": str(input_path), "text": transcript, "modelPreset": configuration["id"], "requestedLanguage": configuration["language"], "detectedLanguage": "", "sentences": [], "raw": [raw]}, ensure_ascii=False, indent=2, default=_json_default), encoding="utf-8"))
         paths.append(str(output_path))
     if not paths:
         raise ValueError("The MLX ASR backend does not provide timestamps required for SRT output")

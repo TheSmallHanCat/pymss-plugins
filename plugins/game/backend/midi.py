@@ -7,8 +7,13 @@ from pymss.plugins.kit import emit, isolate_stdout as isolate_protocol_stdout, r
 
 
 def _vocal_to_midi(payload: dict[str, Any]) -> dict[str, Any]:
+    from .mlx_backend import have_gamemlx, is_apple_silicon
+    from .operations import vocal_to_midi
+
     input_path = _require_file(payload.get("inputPath"), "Input vocal audio")
-    model_path = _require_file(payload.get("modelPath"), "GAME model weights")
+    use_mlx = is_apple_silicon() and have_gamemlx()
+    model_path = (str(payload.get("modelPath") or payload.get("modelAlias") or "medium")
+                  if use_mlx else _require_file(payload.get("modelPath"), "GAME model weights"))
     output_dir = _require_directory(payload.get("outputDir"), "Output directory", create=True)
     raw_bpm = payload["bpm"] if "bpm" in payload else 120
     try:
@@ -38,14 +43,13 @@ def _vocal_to_midi(payload: dict[str, Any]) -> dict[str, Any]:
     # The worker reserves stdout for JSON envelopes. Redirect incidental output
     # from Torch and vendored model code to stderr so it cannot corrupt the protocol.
     with isolate_protocol_stdout():
-        from .engine.infer import infer  # type: ignore
-
-        inference_result = infer(
+        inference_result = vocal_to_midi(
             model_path=model_path,
             audio_path=input_path,
             output_dir=output_dir,
             tempo=bpm,
             language=str(payload.get("language") or "").strip() or None,
+            precision=str(payload.get("precision") or "fp32"),
             progress_callback=report_progress,
         )
         output_path = inference_result.output_path.resolve()

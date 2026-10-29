@@ -82,7 +82,7 @@ const funAsrInstalled = computed(() => Boolean(funAsrStatus.value?.installed))
 const funAsrCanUninstall = computed(() => Boolean((funAsrStatus.value?.present ?? funAsrStatus.value?.installed) && funAsrStatus.value?.canUninstall !== false))
 const funAsrNeedsRepair = computed(() => Boolean(funAsrStatus.value?.present && !funAsrStatus.value?.installed))
 const isAppleSilicon = computed(() => settings.platform === 'darwin' && /arm64|aarch64/i.test(settings.machine))
-const availablePresets = computed(() => isAppleSilicon.value ? ASR_PRESETS.filter(preset => ['paraformer-zh', 'paraformer-en', 'sensevoice-small'].includes(preset.id)) : ASR_PRESETS)
+const availablePresets = computed(() => isAppleSilicon.value ? ASR_PRESETS.filter(preset => ['paraformer-zh', 'sensevoice-small'].includes(preset.id)) : ASR_PRESETS)
 const selectedPreset = computed(() => availablePresets.value.find(preset => preset.id === presetId.value) || availablePresets.value[0])
 const timestampOutputAvailable = computed(() => !isAppleSilicon.value && (modelMode.value === 'local' || selectedPreset.value.supportsTimestamps))
 const formatOptions = computed(() => [

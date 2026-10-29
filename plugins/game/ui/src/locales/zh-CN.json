@@ -115,6 +115,9 @@
     "vocalAudio": "歌声音频",
     "waiting": "配置参数后开始处理",
     "waitingForProgress": "正在准备处理资源",
-    "workerProtocolError": "Worker 通信解析失败，检测到非协议输出“{output}”。请重新启动应用后重试；若问题持续，请在调试页面查看完整日志。"
+    "workerProtocolError": "Worker 通信解析失败，检测到非协议输出“{output}”。请重新启动应用后重试；若问题持续，请在调试页面查看完整日志。",
+    "midiMlxLocalModel": "使用本地 MLX 模型",
+    "midiMlxModelHint": "Apple Silicon 使用 MLX 推理。选择模型规模后，首次运行会下载对应模型。",
+    "midiMlxChooseDirectory": "选择 MLX 模型目录"
   }
 }

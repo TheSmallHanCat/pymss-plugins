@@ -1,6 +1,6 @@
 """pymss plugin: speech-to-text transcription.
 
-Protocol v1. Two backends behind one Operation:
+Protocol v2. Two backends behind one Operation:
 
 * Apple Silicon (macOS arm64) — ``funasr-mlx`` native MLX ports
   (sensevoice / paraformer offline, numerically verified, no PyTorch).
@@ -71,27 +71,9 @@ def _ensure_audio_on_disk(audio_in: Any) -> Path:
 
 
 def _transcribe_mlx(audio_path: Path, model: str, language: str | None, model_dir: str | None) -> dict[str, Any]:
-    from funasr_mlx.api import download_model, transcribe
+    from .asr_mlx import transcribe
 
-    families = {
-        "sensevoice-small": "sensevoice-mlx-fp16",
-        "paraformer-zh": "paraformer-mlx-fp16",
-        "paraformer-en": "paraformer-en-mlx-fp16",
-    }
-    artifact = families.get(model)
-    if artifact is None:
-        raise ValueError(
-            f"model {model!r} has no MLX port; available: {sorted(families)}"
-        )
-    if model_dir:
-        checkpoint = Path(model_dir)
-    else:
-        cache = Path.home() / ".pymss" / "models" / "funasr-mlx"
-        cache.mkdir(parents=True, exist_ok=True)
-        checkpoint = download_model(artifact, dest=str(cache))
-    result = transcribe(str(audio_path), model=str(checkpoint))
-    text = str(result.get("text", "")).strip()
-    return {"text": text, "backend": "funasr-mlx", "model": model}
+    return transcribe(audio_path, model, model_dir, language=language)
 
 
 # ---------------------------------------------------------------------------
@@ -184,3 +166,42 @@ def setup(plugin):
 
     _setup_capabilities(plugin)
     register_tool(plugin, "pymss.asr.tool", _asr_tool, title="Speech recognition", tool="asr")
+
+    _register_graph_node(plugin)
+
+
+def _register_graph_node(plugin):
+    from pymss.graph.core import AUDIO, STRING, NodeSignature, PortSpec
+
+    def signature(node):
+        return NodeSignature(
+            inputs=[PortSpec(name="audio", type=AUDIO)],
+            output_names=["text", "backend"],
+            output_types=[STRING, STRING],
+        )
+
+    def execute(ctx, inputs):
+        from pymss.graph.core import DAGError, NodeResult, StringArtifact
+
+        audio_in = inputs.get("audio")
+        source = getattr(audio_in, "source_path", None)
+        if not source:
+            raise DAGError("AsrTranscribe requires a file-backed AUDIO input")
+        node = ctx.nodes_by_id[ctx.current_node_id]
+        widgets = node.data.get("widgets_values", [])
+        # widgets: [model, language, model_dir]
+        model = str(widgets[0]) if len(widgets) > 0 and widgets[0] else "sensevoice-small"
+        language = str(widgets[1]) if len(widgets) > 1 and widgets[1] else None
+        model_dir = str(widgets[2]) if len(widgets) > 2 and widgets[2] else None
+        result = asr_transcribe(
+            str(source),
+            model=model,
+            language=language or None,
+            model_dir=model_dir or None,
+        )
+        return NodeResult(outputs={
+            0: StringArtifact(str(result.get("text", ""))),
+            1: StringArtifact(str(result.get("backend", ""))),
+        })
+
+    plugin.register_node("AsrTranscribe", execute, signature=signature)
