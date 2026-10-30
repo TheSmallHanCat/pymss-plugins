@@ -12,8 +12,7 @@ from unittest.mock import patch
 import numpy as np
 import soundfile as sf
 
-from pymss.graph import AudioArtifact, DAG, DAGLink, DAGNode, run_dag
-from pymss.graph import nodes as graph_nodes
+from pymss.graph import AudioArtifact, DAG, DAGLink, DAGNode, get_node_type, run_dag
 from pymss.operations import create_runtime
 
 
@@ -23,6 +22,11 @@ ROOT = Path(__file__).resolve().parents[2]
 class WorkflowAudioContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # Resolve a public node first so core owns builtin initialization.
+        get_node_type("input_audio")
+        from pymss.graph import nodes
+
+        cls.graph_nodes = nodes
         cls.runtime = create_runtime()
         reports = cls.runtime.load_plugins([ROOT / "plugins"])
         if not all(row["loaded"] for row in reports):
@@ -135,7 +139,7 @@ class WorkflowAudioContractTests(unittest.TestCase):
         handler = self.runtime._operations["pymss.game.vocal_to_midi"].run
         results = {}
         with (
-            patch.object(graph_nodes, "_run_separation", side_effect=separate),
+            patch.object(self.graph_nodes, "_run_separation", side_effect=separate),
             patch.dict(handler.__globals__, {"vocal_to_midi": transcribe}),
         ):
             saved = run_dag(self.graph("mss_separate", "GameVocalToMidi"),

@@ -29,9 +29,9 @@ def lufs_normalize(audio, sample_rate, target_lufs: float = -14.0):
     loudness = meter.integrated_loudness(measure.T)  # pyloudnorm wants (samples, channels)
     if not np.isfinite(loudness):
         return audio
-    normalized = pyln.normalize.loudness(measure.T, loudness, target_lufs)
-    normalized = normalized.T  # back to (channels, samples)
-    return normalized[0] if audio.ndim == 1 else normalized
+    # The downmix is only a measurement proxy. Apply the resulting gain to
+    # every original channel, preserving mono rank and multichannel layout.
+    return pyln.normalize.loudness(audio.T, loudness, target_lufs).T
 
 
 # Workflow node consuming the capability.
@@ -88,7 +88,8 @@ def _run_loudnorm(audio_in, params):
 
     waveform, sr = audio_to_numpy(audio_in)
     out = lufs_normalize(waveform, sr, target_lufs=float(params.get("target_lufs", -14.0)))
-    return numpy_to_audio(np.asarray(out, dtype=np.float32), sr)
+    return numpy_to_audio(np.asarray(out, dtype=np.float32), sr,
+        source_path=audio_in.source_path, stem_name=audio_in.stem_name, channel_layout=audio_in.channel_layout)
 
 
 def _loudness_tool(request):

@@ -100,6 +100,38 @@ class WorkflowNodeTests(unittest.TestCase):
                 resolve.assert_called_once_with(capability)
                 self.assertEqual(result.outputs[0].value, expected)
 
+    def test_loudnorm_preserves_multichannel_audio_and_metadata(self):
+        import pyloudnorm as pyln
+
+        sample_rate = 48000
+        target = -18.0
+        tone = np.sin(2 * np.pi * 440 * np.arange(sample_rate) / sample_rate).astype(np.float32)
+        for channels, layout in [(6, "5.1(side)"), (8, "7.1")]:
+            original = np.linspace(0.02, 0.08, channels, dtype=np.float32)[:, None] * tone
+            for route in ("node", "operation"):
+                with self.subTest(channels=channels, route=route):
+                    source = AudioArtifact(original.copy(), sample_rate, source_path="/audio/surround.wav",
+                                           stem_name="surround", channel_layout=layout)
+                    if route == "node":
+                        result = get_registry().nodes["NormalizeLUFS"].func(
+                            self.context([target], node_type="NormalizeLUFS"), {"audio": source},
+                        ).outputs[0]
+                    else:
+                        result = self.runtime.run("pymss.loudnorm.normalize", inputs={"audio": source},
+                                                  params={"target_lufs": target})["audio"]
+                    self.assertEqual(result.audio.shape, original.shape)
+                    self.assertEqual(result.sample_rate, sample_rate)
+                    self.assertEqual(result.channel_layout, layout)
+                    self.assertEqual(result.source_path, source.source_path)
+                    self.assertEqual(result.stem_name, source.stem_name)
+                    gain = result.audio[0, 100] / original[0, 100]
+                    np.testing.assert_allclose(result.audio, original * gain, rtol=1e-5, atol=1e-7)
+                    # The >5-channel path measures a mono proxy, but processing
+                    # must retain every original channel with the same gain.
+                    level = pyln.Meter(sample_rate).integrated_loudness(result.audio.mean(axis=0))
+                    self.assertAlmostEqual(level, target, places=4)
+                    np.testing.assert_array_equal(source.audio, original)
+
     def test_asr_node_preserves_backend_and_widget_contract(self):
         execute = get_registry().nodes["AsrTranscribe"].func
         transcribe = Mock(return_value={"text": "recognized", "backend": "funasr-mlx"})
