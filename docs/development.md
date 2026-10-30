@@ -32,6 +32,10 @@
 
 后端公共代码使用 `pymss.plugins.kit`，不要在插件里复制协议或文件工具代码：`register_tool` 注册文件工具 Operation，`emit` 上报结构化进度（宿主通过 `report_progress(..., event=...)` 接收），`require_file`、`render_output`、`run_ffmpeg` 等处理路径与外部进程。capability、workflow node 在 `setup(plugin)` 中通过 `plugin.register_*` 注册，不在 import 时产生副作用。
 
+工作流节点必须在 `contributions.nodes` 中完整声明，并通过 `plugin.register_node()` 注册相同集合；禁止覆盖其他插件的节点或 capability。有等价 Operation 的节点通过 `plugin.run_operation()` 复用输入、参数和输出校验，保持既有 `widgets_values` 顺序。清单中的数值边界用于执行前校验和 Studio 控件，`step` 表示控件步长。
+
+`AudioArtifact.source_path` 只记录来源。识别等文件后端须用 `with materialize_audio(audio) as path:` 读取处理后的缓冲，不能直接重读来源文件。持久产物写入 `ctx.output_dir`，并通过 `NodeResult.saved_paths/saved_records` 登记，不能只返回一个 STRING 路径。临时音频由工具包和 Worker 宿主共同管理；MIDI 等最终产物与临时输入分开存放。
+
 复用现有 SDK 的插件不需要修改 Studio 菜单或增加专属 Worker 命令。新的原生能力需要宿主先提供接口，声明一个新的权限名称不会自动实现该接口。
 
 ## Studio 与运行环境要求

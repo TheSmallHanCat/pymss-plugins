@@ -53,15 +53,11 @@ def _have_funasr() -> bool:
 
 
 def _ensure_audio_on_disk(audio_in: Any) -> Path:
-    """Accept a path string or an audio artifact with source_path; else fail clearly."""
-    source = getattr(audio_in, "source_path", None)
-    if source and Path(str(source)).is_file():
-        return Path(str(source))
+    """Validate explicit file inputs; AUDIO provenance is never readable content."""
     if isinstance(audio_in, (str, Path)) and Path(audio_in).is_file():
         return Path(audio_in)
     raise ValueError(
-        "asr requires an audio file input; pass a file-backed audio input "
-        "(e.g. a load node or file picker), not an in-memory-only buffer"
+        "ASR requires an existing audio file or an AudioArtifact"
     )
 
 
@@ -115,7 +111,13 @@ def _transcribe_funasr(audio_path: Path, model: str, language: str | None) -> di
 
 def asr_transcribe(audio_path, sample_rate=None, model: str = "sensevoice-small",
                    language: str | None = None, model_dir: str | None = None):
-    """Transcribe an audio file to text. Returns {'text', 'backend', 'model', ...}."""
+    """Transcribe current AUDIO content or an explicit file to text."""
+    from pymss.graph.core import AudioArtifact
+    from pymss.plugins.kit import materialize_audio
+
+    if isinstance(audio_path, AudioArtifact):
+        with materialize_audio(audio_path) as path:
+            return asr_transcribe(path, model=model, language=language, model_dir=model_dir)
     path = _ensure_audio_on_disk(audio_path)
     if _is_apple_silicon() and _have_funasr_mlx():
         return _transcribe_mlx(path, model, language, model_dir)
@@ -181,24 +183,21 @@ def _register_graph_node(plugin):
         )
 
     def execute(ctx, inputs):
-        from pymss.graph.core import DAGError, NodeResult, StringArtifact
+        from pymss.graph.core import NodeResult, StringArtifact
+        from pymss.operations import OperationContext
 
-        audio_in = inputs.get("audio")
-        source = getattr(audio_in, "source_path", None)
-        if not source:
-            raise DAGError("AsrTranscribe requires a file-backed AUDIO input")
         node = ctx.nodes_by_id[ctx.current_node_id]
         widgets = node.data.get("widgets_values", [])
         # widgets: [model, language, model_dir]
         model = str(widgets[0]) if len(widgets) > 0 and widgets[0] else "sensevoice-small"
         language = str(widgets[1]) if len(widgets) > 1 and widgets[1] else None
         model_dir = str(widgets[2]) if len(widgets) > 2 and widgets[2] else None
-        result = asr_transcribe(
-            str(source),
-            model=model,
-            language=language or None,
-            model_dir=model_dir or None,
-        )
+        result = plugin.run_operation(
+            "pymss.asr.transcribe", inputs=inputs,
+            params={"model": model, "language": language or "auto", "model_dir": model_dir or ""},
+            context=OperationContext(workdir=str(ctx.output_dir), logger=ctx.logger,
+                progress=lambda fraction, message="", event=None: ctx.report_progress(node, fraction, message)),
+        )["report"]
         return NodeResult(outputs={
             0: StringArtifact(str(result.get("text", ""))),
             1: StringArtifact(str(result.get("backend", ""))),

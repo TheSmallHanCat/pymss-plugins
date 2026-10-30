@@ -56,9 +56,10 @@ def _execute_normalize_lufs(ctx, inputs):
     waveform, sr = audio_to_numpy(audio_in)
     node = ctx.nodes_by_id[ctx.current_node_id]
     widgets = node.data.get("widgets_values", [])
-    target = float(widgets[0]) if widgets else -14.0
+    target = float(widgets[0]) if widgets and widgets[0] is not None else -14.0
     out = ctx.require("lufs_normalize")(waveform, sr, target_lufs=target)
-    return NodeResult(outputs={0: numpy_to_audio(np.asarray(out, dtype=np.float32), sr)})
+    return NodeResult(outputs={0: numpy_to_audio(np.asarray(out, dtype=np.float32), sr,
+        source_path=audio_in.source_path, stem_name=audio_in.stem_name, channel_layout=audio_in.channel_layout)})
 
 
 def _setup_capabilities(plugin):

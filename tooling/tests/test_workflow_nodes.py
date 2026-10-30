@@ -2,14 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
+import tempfile
 import tomllib
 import unittest
 from unittest.mock import Mock, patch
 
 import numpy as np
 
-from pymss.graph.core import AudioArtifact, DAGError
-from pymss.operations import create_runtime
+from pymss.graph.core import AudioArtifact, DAGError, DAGNode, NodeContext, SeparatorCache
+from pymss.operations import OperationError, create_runtime
 from pymss.plugins import get_registry, require_capability
 
 
@@ -28,11 +29,20 @@ class WorkflowNodeTests(unittest.TestCase):
         cls.runtime = create_runtime()
         cls.reports = cls.runtime.load_plugins([ROOT / "plugins"])
 
-    def context(self, widgets=(), require=require_capability):
-        return SimpleNamespace(
-            current_node_id="node", nodes_by_id={"node": SimpleNamespace(data={"widgets_values": list(widgets)})},
-            require=require,
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.output_dir = Path(directory.name)
+
+    def context(self, widgets=(), require=require_capability, node_type="AsrTranscribe"):
+        node = DAGNode("node", node_type, data={"widgets_values": list(widgets)})
+        context = NodeContext(
+            output_dir=self.output_dir, logger=None, debug=False,
+            progress_callback=None, separator_cache=SeparatorCache(),
+            current_node_id=node.id, nodes_by_id={node.id: node},
         )
+        context.require = require
+        return context
 
     def audio(self, source=""):
         return AudioArtifact(np.full((2, 44100), 0.1, dtype=np.float32), 44100, source_path=source)
@@ -70,12 +80,12 @@ class WorkflowNodeTests(unittest.TestCase):
                 processor = Mock(side_effect=lambda audio, sample_rate, **kwargs: audio)
                 resolve = Mock(return_value=processor)
                 execute = get_registry().nodes[name].func
-                result = execute(self.context(widgets, resolve), {"audio": self.audio()})
+                result = execute(self.context(widgets, resolve, name), {"audio": self.audio()})
                 resolve.assert_called_once_with(capability)
                 self.assertEqual(processor.call_args.kwargs, expected)
                 self.assertEqual(result.outputs[0].audio.shape, (2, 44100))
                 with self.assertRaises(DAGError):
-                    execute(self.context(), {})
+                    execute(self.context(node_type=name), {})
 
     def test_analysis_nodes_capture_each_measurement_key(self):
         report = {"lufs": -14.0, "true_peak_dbtp": -1.0, "rms_dbfs": -20.0}
@@ -86,25 +96,46 @@ class WorkflowNodeTests(unittest.TestCase):
         ]:
             with self.subTest(node=node):
                 resolve = Mock(return_value=Mock(return_value=report))
-                result = get_registry().nodes[node].func(self.context(require=resolve), {"audio": self.audio()})
+                result = get_registry().nodes[node].func(self.context(require=resolve, node_type=node), {"audio": self.audio()})
                 resolve.assert_called_once_with(capability)
                 self.assertEqual(result.outputs[0].value, expected)
 
     def test_asr_node_preserves_backend_and_widget_contract(self):
         execute = get_registry().nodes["AsrTranscribe"].func
         transcribe = Mock(return_value={"text": "recognized", "backend": "funasr-mlx"})
-        with patch.dict(execute.__globals__, {"asr_transcribe": transcribe}):
-            result = execute(self.context(["paraformer-en", "en", "/models/asr"]), {"audio": self.audio("/audio/voice.wav")})
-        transcribe.assert_called_once_with("/audio/voice.wav", model="paraformer-en", language="en", model_dir="/models/asr")
+        handler = self.runtime._operations["pymss.asr.transcribe"].run
+        audio = self.audio("/audio/voice.wav")
+        with patch.dict(handler.__globals__, {"asr_transcribe": transcribe}):
+            result = execute(self.context(["paraformer-en", "en", "/models/asr"]), {"audio": audio})
+        transcribe.assert_called_once_with(audio, model="paraformer-en", language="en", model_dir="/models/asr")
         self.assertEqual(result.outputs[0].value, "recognized")
         self.assertEqual(result.outputs[1].value, "funasr-mlx")
 
     def test_game_node_preserves_model_alias_and_midi_output(self):
         execute = get_registry().nodes["GameVocalToMidi"].func
-        transcribe = Mock(return_value=SimpleNamespace(output_path=Path("/output/voice.mid")))
-        with patch.dict(execute.__globals__, {"vocal_to_midi": transcribe}):
-            result = execute(self.context([128, "zh", "small"]), {"audio": self.audio("/audio/voice.wav")})
+        output = self.output_dir / "voice.mid"
+        transcribe = Mock(return_value=SimpleNamespace(output_path=output))
+        handler = self.runtime._operations["pymss.game.vocal_to_midi"].run
+        with patch.dict(handler.__globals__, {"vocal_to_midi": transcribe}):
+            result = execute(self.context([128, "zh", "small"], node_type="GameVocalToMidi"),
+                             {"audio": self.audio("/audio/voice.wav")})
         self.assertEqual(transcribe.call_args.kwargs["model_path"], "small")
         self.assertEqual(transcribe.call_args.kwargs["tempo"], 128)
         self.assertEqual(transcribe.call_args.kwargs["language"], "zh")
-        self.assertEqual(result.outputs[0].value, str(Path("/output/voice.mid")))
+        self.assertEqual(transcribe.call_args.kwargs["output_dir"], str(self.output_dir))
+        self.assertEqual(result.outputs[0].value, str(output))
+        self.assertEqual(result.saved_paths, [str(output)])
+        self.assertEqual(result.saved_records[0].node_type, "GameVocalToMidi")
+
+    def test_game_node_and_operation_reject_zero_tempo_before_inference(self):
+        execute = get_registry().nodes["GameVocalToMidi"].func
+        handler = self.runtime._operations["pymss.game.vocal_to_midi"].run
+        transcribe = Mock()
+        audio = self.audio()
+        with patch.dict(handler.__globals__, {"vocal_to_midi": transcribe}):
+            with self.assertRaisesRegex(DAGError, "tempo"):
+                execute(self.context([0, "en", "small"], node_type="GameVocalToMidi"), {"audio": audio})
+            with self.assertRaisesRegex(OperationError, "tempo.*minimum"):
+                self.runtime.run("pymss.game.vocal_to_midi", inputs={"audio": audio},
+                                 params={"model_path": "small", "tempo": 0})
+        transcribe.assert_not_called()

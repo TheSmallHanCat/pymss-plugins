@@ -53,11 +53,10 @@ def _setup_capabilities(plugin):
     )
 
     def run(ctx, inputs, params):
+        from pymss.plugins.kit import materialize_audio
+
         audio_in = inputs["audio"]
-        source = getattr(audio_in, "source_path", None) or str(inputs.get("audio_path", ""))
-        if not source:
-            raise ValueError("vocal_to_midi requires an audio file input")
-        output_dir = str(params.get("output_dir") or Path(source).parent)
+        output_dir = str(params.get("output_dir") or ctx.workdir or Path.cwd())
         # Apple Silicon: model_path is optional - the gamemlx alias (default
         # 'medium') auto-downloads on first use. Other platforms require an
         # explicit .pt checkpoint path.
@@ -68,14 +67,20 @@ def _setup_capabilities(plugin):
             if not (is_apple_silicon() and have_gamemlx()):
                 raise ValueError("model_path is required (GAME .pt checkpoint)")
             model_path = str(params.get("model_alias") or "medium")
-        result = vocal_to_midi(
-            audio_path=source,
-            model_path=model_path,
-            output_dir=output_dir,
-            tempo=float(params.get("tempo", 120.0)),
-            language=params.get("language") or None,
-            precision=str(params.get("precision") or "fp32"),
-        )
+        def progress(phase, completed, total):
+            ctx.check_cancelled()
+            ctx.report_progress(completed / total if total else 0.0, phase)
+
+        with materialize_audio(audio_in) as source:
+            result = vocal_to_midi(
+                audio_path=source,
+                model_path=model_path,
+                output_dir=output_dir,
+                tempo=float(params.get("tempo", 120.0)),
+                language=params.get("language") or None,
+                precision=str(params.get("precision") or "fp32"),
+                progress_callback=progress,
+            )
         # Both backends expose the same result shape; normalize to the report dict.
         return {"report": {
             "result": str(getattr(result, "output_path", result)) if result is not None else "done",
@@ -130,30 +135,29 @@ def _register_graph_node(plugin):
             inputs=[PortSpec(name="audio", type=AUDIO)],
             output_names=["midi_path"],
             output_types=[STRING],
+            is_output_node=True,
         )
 
     def execute(ctx, inputs):
-        from pathlib import Path as _P
+        from pymss.graph.core import DAGOutputRecord, NodeResult, StringArtifact
+        from pymss.operations import OperationContext
 
-        from pymss.graph.core import DAGError, NodeResult, StringArtifact
-
-        audio_in = inputs.get("audio")
-        source = getattr(audio_in, "source_path", None)
-        if not source:
-            raise DAGError("GameVocalToMidi requires a file-backed AUDIO input")
         node = ctx.nodes_by_id[ctx.current_node_id]
         widgets = node.data.get("widgets_values", [])
         # widgets: [tempo, language, model_path_or_alias]
-        tempo = float(widgets[0]) if len(widgets) > 0 and widgets[0] else 120.0
+        tempo = widgets[0] if len(widgets) > 0 and widgets[0] is not None else 120.0
         language = str(widgets[1]) if len(widgets) > 1 and widgets[1] else None
         model_path = str(widgets[2]) if len(widgets) > 2 and widgets[2] else "medium"
-        result = vocal_to_midi(
-            audio_path=str(source),
-            model_path=model_path,
-            output_dir=str(_P(source).parent),
-            tempo=tempo,
-            language=language or None,
-        )
-        return NodeResult(outputs={0: StringArtifact(str(getattr(result, "output_path", "")))})
+        report = plugin.run_operation(
+            "pymss.game.vocal_to_midi", inputs=inputs,
+            params={"model_path": model_path, "tempo": tempo, "language": language or "", "output_dir": str(ctx.output_dir)},
+            context=OperationContext(workdir=str(ctx.output_dir), logger=ctx.logger,
+                progress=lambda fraction, message="", event=None: ctx.report_progress(node, fraction, message)),
+        )["report"]
+        output = str(report["output_midi"])
+        audio = inputs["audio"]
+        record = DAGOutputRecord(path=output, stem=audio.stem_name or "midi",
+            node_id=node.id, node_type=node.type, format="mid", source_path=audio.source_path)
+        return NodeResult(outputs={0: StringArtifact(output)}, saved_paths=[output], saved_records=[record])
 
     plugin.register_node("GameVocalToMidi", execute, signature=signature)

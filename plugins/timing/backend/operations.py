@@ -119,7 +119,8 @@ def _make_processor_node(capability_name, param_names, widget_defaults):
                 kwargs[name] = defaults[name]
         fn = ctx.require(capability_name)
         out = fn(waveform, sr, **kwargs)
-        return NodeResult(outputs={0: numpy_to_audio(np.asarray(out, dtype=np.float32), sr)})
+        return NodeResult(outputs={0: numpy_to_audio(np.asarray(out, dtype=np.float32), sr,
+            source_path=audio_in.source_path, stem_name=audio_in.stem_name, channel_layout=audio_in.channel_layout)})
 
     return signature, execute
 
