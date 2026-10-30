@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import subprocess
 import tempfile
 from pathlib import Path
@@ -18,6 +19,23 @@ from .slicer_core import Slicer
 
 OUTPUT_FORMATS = {"wav", "flac", "mp3"}
 ANALYSIS_SAMPLE_RATE = 16000
+
+
+def _number_parameter(payload: dict[str, Any], name: str, default: int, *, integer: bool = False) -> float | int:
+    value = payload.get(name, default)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{name} must be a finite number")
+    try:
+        finite = math.isfinite(value)
+    except OverflowError:
+        finite = False
+    if not finite:
+        raise ValueError(f"{name} must be a finite number")
+    if integer:
+        if value != int(value):
+            raise ValueError(f"{name} must be an integer number of milliseconds")
+        return int(value)
+    return float(value)
 
 
 def _decode_analysis_audio(input_path: Path, raw_path: Path) -> None:
@@ -80,14 +98,12 @@ def _slice_audio(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("At least one input audio file is required")
     if len(raw_inputs) > 200:
         raise ValueError("A maximum of 200 files can be sliced at once")
-    inputs = [_require_file(value, "Input audio") for value in raw_inputs]
-    output_dir = _require_directory(payload.get("outputDir"), "Output directory", create=True)
     output_format = str(payload.get("outputFormat") or "wav").lower()
-    threshold = float(payload.get("threshold", -40))
-    min_length = int(payload.get("minLength", 5000))
-    min_interval = int(payload.get("minInterval", 300))
-    hop_size = int(payload.get("hopSize", 10))
-    max_sil_kept = int(payload.get("maxSilKept", 500))
+    threshold = _number_parameter(payload, "threshold", -40)
+    min_length = _number_parameter(payload, "minLength", 5000, integer=True)
+    min_interval = _number_parameter(payload, "minInterval", 300, integer=True)
+    hop_size = _number_parameter(payload, "hopSize", 10, integer=True)
+    max_sil_kept = _number_parameter(payload, "maxSilKept", 500, integer=True)
     if output_format not in OUTPUT_FORMATS:
         raise ValueError("Unsupported slice output format")
     if not -100 <= threshold <= 0:
@@ -96,6 +112,8 @@ def _slice_audio(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("The following condition must be satisfied: minLength >= minInterval >= hopSize > 0")
     if max_sil_kept < hop_size:
         raise ValueError("maxSilKept must be greater than or equal to hopSize")
+    inputs = [_require_file(value, "Input audio") for value in raw_inputs]
+    output_dir = _require_directory(payload.get("outputDir"), "Output directory", create=True)
 
     analyzed: list[tuple[Path, list[tuple[float, float]]]] = []
     with tempfile.TemporaryDirectory(prefix="pymss-slicer-") as temp_value:

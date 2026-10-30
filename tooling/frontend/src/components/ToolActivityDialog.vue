@@ -2,6 +2,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TerminalOutline } from '@vicons/ionicons5'
+import { refreshToolLayout } from '../layout'
 
 defineProps<{ busy?: boolean; percentage?: number | null }>()
 const { t } = useI18n()
@@ -9,6 +10,7 @@ const show = ref(false)
 function setOverlay(open: boolean) {
   document.documentElement.classList.toggle('tool-activity-open', open)
   window.parent.postMessage({ jsonrpc: '2.0', method: 'pymss.overlay', params: { open } }, '*')
+  if (!open) refreshToolLayout()
 }
 watch(show, open => { if (open) setOverlay(true) })
 onBeforeUnmount(() => setOverlay(false))

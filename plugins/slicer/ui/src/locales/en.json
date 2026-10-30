@@ -103,7 +103,7 @@
     "skippedCount": "Skipped {count} file(s)",
     "slicerDescription": "Audio segmentation based on silence detection",
     "slicerHint": "Silence is analyzed before segments are exported from the source. Existing files are preserved.",
-    "slicerParameterError": "Parameters must satisfy: minimum clip ≥ minimum silence ≥ analysis hop, and maximum kept silence ≥ analysis hop.",
+    "slicerParameterError": "Enter every parameter. The threshold must be between -100 and 0 dB; timings must be whole milliseconds with minimum clip ≥ minimum silence ≥ analysis hop > 0, and maximum kept silence ≥ analysis hop.",
     "slicerTitle": "Audio slicer",
     "sourceFiles": "Source files",
     "startSlicer": "Slice audio",

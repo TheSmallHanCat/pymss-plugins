@@ -1,7 +1,7 @@
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 import App from './App.vue'
-import { host } from './studio'
+import { host, LAYOUT_REFRESH_EVENT } from './studio'
 import { messages } from './i18n'
 import './style.css'
 
@@ -19,5 +19,11 @@ const reportHeight = () => {
 }
 const observer = new ResizeObserver(reportHeight)
 observer.observe(document.getElementById('app')!)
+window.addEventListener(LAYOUT_REFRESH_EVENT, reportHeight)
 reportHeight()
-window.addEventListener('pagehide', () => { observer.disconnect(); cancelAnimationFrame(scheduled); app.unmount() }, { once: true })
+window.addEventListener('pagehide', () => {
+  observer.disconnect()
+  window.removeEventListener(LAYOUT_REFRESH_EVENT, reportHeight)
+  cancelAnimationFrame(scheduled)
+  app.unmount()
+}, { once: true })

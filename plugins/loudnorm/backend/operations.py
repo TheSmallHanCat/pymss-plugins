@@ -10,27 +10,21 @@ import numpy as np
 
 
 
-def lufs_normalize(audio, sample_rate, target_lufs: float = -14.0):
+def lufs_normalize(audio, sample_rate, target_lufs: float = -14.0, *, channel_layout=None):
     """Normalize audio to a target integrated loudness in LUFS.
 
     Uses pyloudnorm (declared as this plugin's dependency). Audio is channel-first
     (channels, samples) or 1-D mono, float32. Returns audio at the same layout
-    scaled to reach the target loudness.
+    scaled to reach the target loudness. Multichannel input requires its layout.
     """
     import pyloudnorm as pyln
+    from .lufs import integrated_loudness
 
     audio = np.asarray(audio, dtype=np.float32)
-    # pyloudnorm expects (channels, samples) float, max 5 channels.
-    measure = audio if audio.ndim == 2 else audio[None, :]
-    if measure.shape[0] > 5:
-        # Downmix to mono if more than 5 channels (pyloudnorm limit).
-        measure = measure.mean(axis=0, keepdims=True)
-    meter = pyln.Meter(int(sample_rate))
-    loudness = meter.integrated_loudness(measure.T)  # pyloudnorm wants (samples, channels)
+    loudness = integrated_loudness(audio, sample_rate, channel_layout=channel_layout)
     if not np.isfinite(loudness):
         return audio
-    # The downmix is only a measurement proxy. Apply the resulting gain to
-    # every original channel, preserving mono rank and multichannel layout.
+    # Apply one gain to every original channel, including LFE, without remixing.
     return pyln.normalize.loudness(audio.T, loudness, target_lufs).T
 
 
@@ -57,7 +51,7 @@ def _execute_normalize_lufs(ctx, inputs):
     node = ctx.nodes_by_id[ctx.current_node_id]
     widgets = node.data.get("widgets_values", [])
     target = float(widgets[0]) if widgets and widgets[0] is not None else -14.0
-    out = ctx.require("lufs_normalize")(waveform, sr, target_lufs=target)
+    out = ctx.require("lufs_normalize")(waveform, sr, target_lufs=target, channel_layout=audio_in.channel_layout)
     return NodeResult(outputs={0: numpy_to_audio(np.asarray(out, dtype=np.float32), sr,
         source_path=audio_in.source_path, stem_name=audio_in.stem_name, channel_layout=audio_in.channel_layout)})
 
@@ -87,7 +81,8 @@ def _run_loudnorm(audio_in, params):
     from pymss.graph.core import audio_to_numpy, numpy_to_audio
 
     waveform, sr = audio_to_numpy(audio_in)
-    out = lufs_normalize(waveform, sr, target_lufs=float(params.get("target_lufs", -14.0)))
+    out = lufs_normalize(waveform, sr, target_lufs=float(params.get("target_lufs", -14.0)),
+                         channel_layout=audio_in.channel_layout)
     return numpy_to_audio(np.asarray(out, dtype=np.float32), sr,
         source_path=audio_in.source_path, stem_name=audio_in.stem_name, channel_layout=audio_in.channel_layout)
 

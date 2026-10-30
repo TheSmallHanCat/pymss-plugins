@@ -3,6 +3,7 @@ import type { GlobalThemeOverrides } from 'naive-ui'
 import { resolveLocale } from './i18n'
 
 export const OPERATION_ID = 'example.audio_gain.apply'
+export const LAYOUT_REFRESH_EVENT = 'pymss:layout-refresh'
 export type Progress = { id: number; fraction?: number; message?: string }
 export type RpcPromise<T> = Promise<T> & { readonly id: number }
 export type OperationResult = { operation: string; outputs: { audio?: { kind: string; path?: string }; report?: { value?: Record<string, unknown> } } }
@@ -62,4 +63,5 @@ export async function connect() {
 
 export function overlay(open: boolean) {
   window.parent.postMessage({ jsonrpc: '2.0', method: 'pymss.overlay', params: { open } }, '*')
+  if (!open) window.dispatchEvent(new Event(LAYOUT_REFRESH_EVENT))
 }

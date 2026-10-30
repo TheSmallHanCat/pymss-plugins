@@ -103,7 +103,7 @@
     "skippedCount": "已跳过 {count} 个文件",
     "slicerDescription": "基于静音检测的音频分段",
     "slicerHint": "先分析静音位置，再从源文件导出片段；已有文件不会被覆盖。",
-    "slicerParameterError": "参数需要满足：最短片段 ≥ 最短静音 ≥ 检测步长，且最大保留静音 ≥ 检测步长。",
+    "slicerParameterError": "请填写全部参数。阈值须介于 -100 至 0 dB；时间须为整数毫秒，并满足：最短片段 ≥ 最短静音 ≥ 检测步长 > 0，且最大保留静音 ≥ 检测步长。",
     "slicerTitle": "音频切片",
     "sourceFiles": "源文件",
     "startSlicer": "开始切片",

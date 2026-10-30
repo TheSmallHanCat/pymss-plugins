@@ -146,10 +146,12 @@ def setup(plugin):
 
     def _wrap(fn, param_defs):
         def run(ctx, inputs, params):
-            waveform, sr = audio_to_numpy(inputs["audio"])
+            audio_in = inputs["audio"]
+            waveform, sr = audio_to_numpy(audio_in)
             kwargs = {k: params[k] for k in param_defs if k in params}
             out = fn(waveform, sr, **kwargs)
-            return {"audio": numpy_to_audio(np.asarray(out, dtype=np.float32), sr)}
+            return {"audio": numpy_to_audio(np.asarray(out, dtype=np.float32), sr,
+                source_path=audio_in.source_path, stem_name=audio_in.stem_name, channel_layout=audio_in.channel_layout)}
         return run
 
     plugin.register_operation(

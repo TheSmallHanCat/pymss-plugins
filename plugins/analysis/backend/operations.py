@@ -9,19 +9,14 @@ from __future__ import annotations
 import numpy as np
 
 
-def measure_lufs(audio, sample_rate):
+def measure_lufs(audio, sample_rate, *, channel_layout=None):
     """Integrated loudness in LUFS (ITU-R BS.1770-4). Returns {'lufs': float}.
 
     Returns lufs=-inf for silent input. Audio is mono or channels-first.
     """
-    import pyloudnorm as pyln
+    from .lufs import integrated_loudness
 
-    audio = np.asarray(audio, dtype=np.float32)
-    measure = audio if audio.ndim == 2 else audio[None, :]
-    if measure.shape[0] > 5:
-        measure = measure.mean(axis=0, keepdims=True)
-    meter = pyln.Meter(int(sample_rate))
-    loudness = meter.integrated_loudness(measure.T)  # pyloudnorm wants (samples, channels)
+    loudness = integrated_loudness(audio, sample_rate, channel_layout=channel_layout)
     return {"lufs": float(loudness) if np.isfinite(loudness) else float("-inf")}
 
 
@@ -50,26 +45,25 @@ def measure_rms(audio, sample_rate=None):
     }
 
 
-def measure_dynamic_range(audio, sample_rate, block_seconds=0.4):
+def measure_dynamic_range(audio, sample_rate, block_seconds=0.4, *, channel_layout=None):
     """Crude dynamic-range estimate: difference between loud and quiet blocks.
 
     Splits into blocks, computes per-block LUFS, returns DR = Lmax - Lmin (LU).
     Returns {'dr_lu': float, 'lufs_max': float, 'lufs_min': float}.
     """
-    import pyloudnorm as pyln
+    from .lufs import integrated_loudness
 
     audio = np.asarray(audio, dtype=np.float32)
     measure = audio if audio.ndim == 2 else audio[None, :]
-    if measure.shape[0] > 5:
-        measure = measure.mean(axis=0, keepdims=True)
+    if not np.isfinite(block_seconds) or block_seconds < 0.4:
+        raise ValueError("block_seconds must be finite and at least 0.4")
 
     sr = int(sample_rate)
     block = max(int(sr * block_seconds), 1)
-    meter = pyln.Meter(sr)
     loud = []
-    for i in range(0, measure.shape[1] - block, block):
+    for i in range(0, measure.shape[1] - block + 1, block):
         seg = measure[:, i:i + block]
-        L = meter.integrated_loudness(seg.T)
+        L = integrated_loudness(seg, sr, channel_layout=channel_layout)
         if np.isfinite(L):
             loud.append(L)
     if len(loud) < 2:
@@ -119,8 +113,11 @@ def setup(plugin):
 
     def _measure(fn, param_defs):
         def run(ctx, inputs, params):
-            waveform, sr = audio_to_numpy(inputs["audio"])
+            audio_in = inputs["audio"]
+            waveform, sr = audio_to_numpy(audio_in)
             kwargs = {k: params[k] for k in param_defs if k in params}
+            if fn is measure_lufs:
+                kwargs["channel_layout"] = audio_in.channel_layout
             result = fn(waveform, sr, **kwargs)
             return {"report": {k: (float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else v)
                                for k, v in result.items()}}
@@ -193,7 +190,8 @@ def _register_graph_nodes(plugin):
             if audio_in is None:
                 raise DAGError(f"{_type} requires an AUDIO input")
             waveform, sr = audio_to_numpy(audio_in)
-            result = ctx.require(_cap)(waveform, sr)
+            kwargs = {"channel_layout": audio_in.channel_layout} if _cap == "measure_lufs" else {}
+            result = ctx.require(_cap)(waveform, sr, **kwargs)
             value = result.get(_key) if isinstance(result, dict) else result
             return NodeResult(outputs={0: StringArtifact(str(value))})
 

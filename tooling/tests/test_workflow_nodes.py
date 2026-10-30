@@ -126,11 +126,26 @@ class WorkflowNodeTests(unittest.TestCase):
                     self.assertEqual(result.stem_name, source.stem_name)
                     gain = result.audio[0, 100] / original[0, 100]
                     np.testing.assert_allclose(result.audio, original * gain, rtol=1e-5, atol=1e-7)
-                    # The >5-channel path measures a mono proxy, but processing
-                    # must retain every original channel with the same gain.
-                    level = pyln.Meter(sample_rate).integrated_loudness(result.audio.mean(axis=0))
+                    # The fixture uses one tone on every channel. Its known
+                    # weighted energy gives an independent mono reference;
+                    # LFE (index 3) is excluded, surrounds use energy gain 1.41.
+                    amplitudes = np.linspace(0.02, 0.08, channels)
+                    weights = np.array([1, 1, 1, 0] + [1.41] * (channels - 4))
+                    reference = tone.astype(np.float64) * np.sqrt(np.sum(weights * amplitudes ** 2)) * gain
+                    level = pyln.Meter(sample_rate, filter_class="DeMan").integrated_loudness(reference)
                     self.assertAlmostEqual(level, target, places=4)
                     np.testing.assert_array_equal(source.audio, original)
+
+    def test_analysis_node_uses_input_channel_layout(self):
+        sample_rate = 48000
+        tone = (0.1 * np.sin(2 * np.pi * 440 * np.arange(sample_rate) / sample_rate)).astype(np.float32)
+        waveform = np.zeros((6, sample_rate), dtype=np.float32)
+        waveform[3] = tone  # LFE alone is excluded from integrated loudness.
+        audio = AudioArtifact(waveform, sample_rate, channel_layout="5.1(side)")
+        result = get_registry().nodes["AnalysisMeasureLUFS"].func(
+            self.context(node_type="AnalysisMeasureLUFS"), {"audio": audio},
+        )
+        self.assertEqual(float(result.outputs[0].value), -np.inf)
 
     def test_asr_node_preserves_backend_and_widget_contract(self):
         execute = get_registry().nodes["AsrTranscribe"].func

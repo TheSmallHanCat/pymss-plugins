@@ -64,3 +64,71 @@ test('clipped floating controls reserve stable space and release it on dismissal
   assert.equal(disconnected, true)
   assert.equal(observed.size, 0)
 })
+
+test('overlay close resends a height that the host ignored while the overlay was open', () => {
+  const exports = {}, messages = [], scheduled = new Map(), events = new Map()
+  let height = 500, next = 0, resized, overlay = false, hostHeight = 0
+  const window = {
+    parent: { postMessage: message => { messages.push(message); if (!overlay) hostHeight = message.params.height } },
+    addEventListener: (name, callback) => events.set(name, callback),
+    removeEventListener: name => events.delete(name),
+    dispatchEvent: event => events.get(event.type)?.(),
+  }
+  vm.runInNewContext(code, {
+    exports, window, Event,
+    document: { body: { getBoundingClientRect: () => ({ height }) }, querySelectorAll: () => [] },
+    ResizeObserver: class { constructor(callback) { resized = callback } observe() {} disconnect() {} },
+    MutationObserver: class { observe() {} disconnect() {} },
+    requestAnimationFrame: callback => { scheduled.set(++next, callback); return next }, cancelAnimationFrame: id => scheduled.delete(id),
+  })
+  const flush = () => { const callbacks = [...scheduled.values()]; scheduled.clear(); callbacks.forEach(callback => callback()) }
+  const dispose = exports.observeToolLayout()
+  flush()
+  overlay = true; height = 800; resized(); flush()
+  assert.equal(hostHeight, 500)
+  overlay = false; exports.refreshToolLayout(); resized(); flush()
+  assert.equal(hostHeight, 800)
+  assert.equal(messages.length, 3)
+  resized(); flush(); assert.equal(messages.length, 3)
+  dispose(); exports.refreshToolLayout(); flush()
+  assert.equal(events.size, 0)
+  assert.equal(messages.length, 3)
+})
+
+test('the standalone example reports height after closing its overlay and removes the listener on pagehide', () => {
+  const scheduled = new Map(), events = new Map(), messages = []
+  let height = 500, hostHeight = 0, overlayOpen = false, next = 0, resized, disconnected = false
+  const window = {
+    parent: { postMessage: message => {
+      messages.push(message)
+      if (message.method === 'pymss.overlay') overlayOpen = message.params.open
+      if (message.method === 'pymss.resize' && !overlayOpen) hostHeight = message.params.height
+    } },
+    addEventListener: (name, callback) => events.set(name, callback),
+    removeEventListener: name => events.delete(name),
+    dispatchEvent: event => events.get(event.type)?.(),
+  }
+  const studio = {}
+  const app = { use() { return this }, mount() {}, unmount: () => studio.overlay(false) }
+  const context = {
+    window, Event, navigator: { language: 'en' },
+    document: { getElementById: () => ({ getBoundingClientRect: () => ({ height }) }) },
+    ResizeObserver: class { constructor(callback) { resized = callback } observe() {} disconnect() { disconnected = true } },
+    requestAnimationFrame: callback => { scheduled.set(++next, callback); return next }, cancelAnimationFrame: id => scheduled.delete(id),
+    require: name => ({ vue: { reactive: value => value, createApp: () => app }, './i18n': { resolveLocale: value => value, messages: {} }, 'vue-i18n': { createI18n: () => ({}) }, './studio': studio })[name] || {},
+  }
+  const compile = path => ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
+  vm.runInNewContext(compile('../../../examples/audio_gain/ui/src/studio.ts'), { ...context, exports: studio })
+  vm.runInNewContext(compile('../../../examples/audio_gain/ui/src/main.ts'), { ...context, exports: {} })
+  const flush = () => { const callbacks = [...scheduled.values()]; scheduled.clear(); callbacks.forEach(callback => callback()) }
+  flush()
+  studio.overlay(true); height = 800; resized(); flush()
+  assert.equal(hostHeight, 500)
+  studio.overlay(false); flush()
+  assert.equal(hostHeight, 800)
+  assert.deepEqual(messages.slice(-2).map(message => message.method), ['pymss.overlay', 'pymss.resize'])
+  events.get('pagehide')()
+  assert.equal(disconnected, true)
+  assert.equal(events.has(studio.LAYOUT_REFRESH_EVENT), false)
+  assert.equal(scheduled.size, 0)
+})

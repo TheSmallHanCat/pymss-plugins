@@ -11,9 +11,14 @@ import AudioToolHeader from '@/features/audio-tools/shared/AudioToolHeader.vue'
 import { useAudioToolRuntime } from '@/features/audio-tools/runtime'
 type ScanResult = { files: string[]; warnings: string[] }
 const { t } = useI18n(); const message = useMessage(); const settings = useSettingsStore(); const runtime = useAudioToolRuntime(); const state = runtime.stateFor('slicer')
-const inputs = toolRef<string[]>('inputs', []); const outputDir = toolRef('outputDir', settings.outputDir); const outputFormat = toolRef('outputFormat', 'wav'); const threshold = toolRef('threshold', -40); const minLength = toolRef('minLength', 5000); const minInterval = toolRef('minInterval', 300); const hopSize = toolRef('hopSize', 10); const maxSilKept = toolRef('maxSilKept', 500)
+const inputs = toolRef<string[]>('inputs', []); const outputDir = toolRef('outputDir', settings.outputDir); const outputFormat = toolRef('outputFormat', 'wav'); const threshold = toolRef<number | null>('threshold', -40); const minLength = toolRef<number | null>('minLength', 5000); const minInterval = toolRef<number | null>('minInterval', 300); const hopSize = toolRef<number | null>('hopSize', 10); const maxSilKept = toolRef<number | null>('maxSilKept', 500)
 const formats = ['wav', 'flac', 'mp3'].map(value => ({ label: value.toUpperCase(), value }))
-const valid = computed(() => minLength.value >= minInterval.value && minInterval.value >= hopSize.value && hopSize.value > 0 && maxSilKept.value >= hopSize.value && threshold.value >= -100 && threshold.value <= 0)
+const valid = computed(() => {
+  const values = [threshold.value, minLength.value, minInterval.value, hopSize.value, maxSilKept.value]
+  if (!values.every((value): value is number => typeof value === 'number' && Number.isFinite(value))) return false
+  const [level, length, interval, hop, kept] = values
+  return [length, interval, hop, kept].every(Number.isInteger) && length >= interval && interval >= hop && hop > 0 && kept >= hop && level >= -100 && level <= 0
+})
 watch(() => settings.outputDir, value => { if (!outputDir.value) outputDir.value = value })
 function fileName(path: string) { return path.split(/[\\/]/).filter(Boolean).pop() || path }
 function add(paths: string[]) { const current = new Set(inputs.value); inputs.value = [...inputs.value, ...paths.filter(path => path && !current.has(path))] }

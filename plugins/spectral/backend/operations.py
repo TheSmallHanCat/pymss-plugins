@@ -23,12 +23,7 @@ def _biquad(audio, sample_rate, btype, f0, Q=0.707, gain_db=0.0):
 
 
     audio = np.asarray(audio, dtype=np.float32)
-    # Reuse pymss's built-in biquad coefficient helper if available, else compute.
-    try:
-        b, a = _coeffs(btype, float(f0), float(sample_rate), float(Q), float(gain_db))
-    except Exception:
-        # Fallback: delegate to a first-order approximation.
-        b, a = _coeffs(btype, float(f0), float(sample_rate), float(Q), float(gain_db))
+    b, a = _coeffs(btype, f0, sample_rate, Q, gain_db)
     flat = audio.ndim == 1
     x = audio[None, :] if flat else audio
     out = np.stack([lfilter(b, a, ch) for ch in x])
@@ -38,6 +33,16 @@ def _biquad(audio, sample_rate, btype, f0, Q=0.707, gain_db=0.0):
 def _coeffs(btype, f0, sr, Q, gain_db):
     """Compute biquad coefficients per the Audio EQ Cookbook."""
     import math
+
+    sr, f0, Q, gain_db = map(float, (sr, f0, Q, gain_db))
+    if not math.isfinite(sr) or sr <= 0:
+        raise ValueError("Filter sample rate must be finite and positive")
+    if not math.isfinite(f0) or not 0 < f0 < sr / 2:
+        raise ValueError("Filter frequency must be positive and below the input audio Nyquist frequency")
+    if not math.isfinite(Q) or Q <= 0:
+        raise ValueError("Filter Q must be finite and positive")
+    if not math.isfinite(gain_db):
+        raise ValueError("Filter gain must be finite")
 
     w0 = 2 * math.pi * f0 / sr
     cos = math.cos(w0)
@@ -188,14 +193,16 @@ def setup(plugin):
 
     def _wrap(fn, frequency_parameter):
         def run(ctx, inputs, params):
-            waveform, sr = audio_to_numpy(inputs["audio"])
+            audio_in = inputs["audio"]
+            waveform, sr = audio_to_numpy(audio_in)
             kwargs = dict(params)
             frequency = kwargs.pop("f0")
             if not 0 < frequency < sr / 2:
                 raise ValueError("Filter frequency must be below the input audio Nyquist frequency")
             kwargs[frequency_parameter] = frequency
             out = fn(waveform, sr, **kwargs)
-            return {"audio": numpy_to_audio(np.asarray(out, dtype=np.float32), sr)}
+            return {"audio": numpy_to_audio(np.asarray(out, dtype=np.float32), sr,
+                source_path=audio_in.source_path, stem_name=audio_in.stem_name, channel_layout=audio_in.channel_layout)}
         return run
 
     plugin.register_operation(

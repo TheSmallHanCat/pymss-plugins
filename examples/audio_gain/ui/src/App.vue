@@ -43,7 +43,7 @@ watch([gain, protect, output], () => {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(persist, 350)
 }, { flush: 'sync' })
-watch(showLogs, overlay)
+watch(showLogs, open => { if (open) overlay(true) })
 
 onMounted(async () => {
   try {
@@ -138,7 +138,7 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(saveTimer); clearInterval(
       </section>
       <section v-if="result" class="gain-panel gain-results"><h2>{{ t('results') }}</h2><p :title="result.outputs.audio?.path">{{ filename(result.outputs.audio?.path || '') }}</p><dl><div><dt>{{ t('peakBefore') }}</dt><dd>{{ peak(report.peak_before) }}</dd></div><div><dt>{{ t('peakAfter') }}</dt><dd>{{ peak(report.peak_after) }}</dd></div><div><dt>{{ t('peakLimited') }}</dt><dd>{{ t(report.peak_limited ? 'yes' : 'no') }}</dd></div></dl><n-button secondary @click="reveal">{{ t('openOutput') }}</n-button></section>
     </main>
-    <n-modal v-model:show="showLogs" preset="card" :title="t('logTitle')" style="width:min(760px,calc(100vw - 32px));max-height:calc(100dvh - 48px)">
+    <n-modal v-model:show="showLogs" preset="card" :title="t('logTitle')" style="width:min(760px,calc(100vw - 32px));max-height:calc(100dvh - 48px)" @after-leave="overlay(false)">
       <div class="gain-log" role="log"><p v-if="!logs.length">{{ t('noLogs') }}</p><div v-for="entry in logs" :key="entry.id"><time>{{ new Date(entry.time).toLocaleTimeString(locale, { hour12: false }) }}</time><span>{{ entry.key ? t(`event.${entry.key}`) : entry.raw }}</span></div></div>
     </n-modal>
   </n-config-provider>
