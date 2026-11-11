@@ -44,7 +44,7 @@ export function useAudioInputDrop(options: {
       if (options.mode === 'directory') {
         const containsAudio = selected.some(file => {
           const normalized = /^(?:[a-z]:[\\/]|\\\\|\/\/)/i.test(file) ? file.replace(/\\/g, '/') : file
-          return sameAudioDirectory(normalized.slice(0, normalized.lastIndexOf('/')) || '/', paths[0]!)
+          return sameAudioDirectory(normalized.slice(0, normalized.lastIndexOf('/') + 1) || '/', paths[0]!)
         })
         if (!containsAudio) { message.warning(t('tools.dropFolder')); return }
       } else {

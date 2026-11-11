@@ -67,6 +67,37 @@ test('directory inputs accept an audio folder and reject a file or multiple fold
   assert.equal(multiple.calls.length, 0)
 })
 
+test('directory drops preserve Windows drive roots and accept native path variants', async () => {
+  for (const [directory, file] of [
+    ['C:\\', 'C:\\song.wav'],
+    ['c:/', 'C:/song.wav'],
+    ['C:\\', 'c:/song.wav'],
+    ['C:\\Audio', 'c:\\audio\\song.wav'],
+    ['\\\\server\\share\\', '\\\\SERVER\\SHARE\\song.wav'],
+    ['/', '/song.wav'],
+  ]) {
+    const h = host({ mode: 'directory', scan: async () => ({ files: [file], warnings: [] }) })
+    await h.send({ type: 'drop', paths: [directory] })
+    assert.deepEqual(h.accepted, [{ files: [file], paths: [directory] }], directory)
+    assert.deepEqual(h.warnings, [], directory)
+    assert.equal(h.calls[0].recursive, false)
+  }
+})
+
+test('directory drops require audio directly inside the selected directory', async () => {
+  for (const [directory, files] of [
+    ['C:\\', []],
+    ['C:\\', ['C:\\Audio\\song.wav']],
+    ['C:\\', ['D:\\song.wav']],
+    ['C:\\song.wav', ['C:\\song.wav']],
+  ]) {
+    const h = host({ mode: 'directory', scan: async () => ({ files, warnings: [] }) })
+    await h.send({ type: 'drop', paths: [directory] })
+    assert.deepEqual(h.accepted, [], directory)
+    assert.deepEqual(h.warnings, ['tools.dropFolder'], directory)
+  }
+})
+
 test('busy or disposed inputs ignore drops and late scans, without leaking listeners', async () => {
   const busy = host(); busy.disable(); await busy.send({ type: 'drop', paths: ['a.wav'] }); assert.equal(busy.calls.length, 0)
   let resolve
