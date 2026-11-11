@@ -21,6 +21,16 @@ let resolveReady!: () => void
 const ready = new Promise<void>(resolve => { resolveReady = resolve })
 export const persistenceError = ref('')
 export type UnlistenFn = () => void
+export type FileDropEvent = { type: 'leave' } | {
+  type: 'enter' | 'over' | 'drop'
+  position: { x: number; y: number }
+  paths?: string[]
+}
+const fileDropListeners = new Set<(event: FileDropEvent) => void>()
+export function onFileDrop(handler: (event: FileDropEvent) => void): UnlistenFn {
+  fileDropListeners.add(handler)
+  return () => { fileDropListeners.delete(handler) }
+}
 
 type OverlayBounds = { left: number; top: number; width: number }
 type Viewport = { width: number; height: number }
@@ -122,6 +132,13 @@ window.addEventListener('message', event => {
   if (data.method === 'host.ready') {
     connected = true
     resolveReady()
+  } else if (data.method === 'host.filesDrop') {
+    const payload = data.params
+    if (payload?.type === 'leave' || (['enter', 'over', 'drop'].includes(payload?.type)
+      && Number.isFinite(payload.position?.x) && Number.isFinite(payload.position?.y)
+      && (payload.paths === undefined || (Array.isArray(payload.paths) && payload.paths.every((path: unknown) => typeof path === 'string'))))) {
+      for (const handler of fileDropListeners) handler(payload)
+    }
   } else if (data.method === 'host.overlay') {
     const bounds = data.params?.bounds
     const valid = data.params?.open === true && bounds
@@ -355,4 +372,5 @@ window.addEventListener('pagehide', () => {
   }
   pending.clear()
   listeners.clear()
+  fileDropListeners.clear()
 }, { once: true })

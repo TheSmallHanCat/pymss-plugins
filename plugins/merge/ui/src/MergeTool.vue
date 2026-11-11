@@ -8,6 +8,7 @@ import { useSettingsStore } from '@/stores/settings'
 import AudioToolPanel from '@/features/audio-tools/shared/AudioToolPanel.vue'
 import AudioToolHeader from '@/features/audio-tools/shared/AudioToolHeader.vue'
 import { useAudioToolRuntime } from '@/features/audio-tools/runtime'
+import { useAudioInputDrop } from '@/features/audio-tools/useAudioInputDrop'
 import { loadAudioToolsState, updateAudioToolsState } from '@/features/audio-tools/state'
 import { sameAudioDirectory } from '@/features/audio-tools/paths'
 
@@ -89,6 +90,7 @@ function run() {
     regexPattern: sortBy.value === 'regex' ? regexPattern.value : '',
   })
 }
+const { dropZone: inputDropZone, dragging: inputDragging, scanning: inputScanning } = useAudioInputDrop({ disabled: () => state.value.anyBusy, mode: 'directory', accept: (_files, paths) => { inputDir.value = paths[0]! } })
 </script>
 
 <template>
@@ -96,11 +98,11 @@ function run() {
     <AudioToolHeader :icon="GitMergeOutline" :title="t('tools.mergeTitle')" :description="t('tools.mergeDescription')" />
 
     <div class="audio-tool-grid">
-      <div data-guide="tool-input" class="audio-tool-field">
+      <div ref="inputDropZone" :class="{ 'audio-tool-drop--active': inputDragging }" :aria-busy="inputScanning" data-guide="tool-input" class="audio-tool-field">
         <label>{{ t('tools.inputDirectory') }}</label>
         <div class="audio-tool-path">
           <n-input :value="inputDir" readonly :placeholder="t('tools.chooseInputDirectory')" />
-          <n-button secondary :disabled="state.anyBusy" @click="pickInput">
+          <n-button secondary :disabled="state.anyBusy || inputScanning" @click="pickInput">
             <template #icon><n-icon :component="FolderOpenOutline" /></template>
             {{ t('common.browse') }}
           </n-button>
@@ -151,7 +153,7 @@ function run() {
       <n-button
         type="primary"
         :loading="state.busy"
-        :disabled="state.anyBusy || !inputDir || !outputDir || Boolean(regexError) || Boolean(directoryError)"
+        :disabled="state.anyBusy || inputScanning || !inputDir || !outputDir || Boolean(regexError) || Boolean(directoryError)"
         @click="run"
       >
         {{ t('tools.startMerge') }}

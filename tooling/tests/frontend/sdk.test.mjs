@@ -73,6 +73,19 @@ test('log overlays anchor the form without retaining stale or invalid layout coo
   assert.equal(properties.size, 0)
 })
 
+test('file drop notifications validate coordinates and release subscriptions', async t => {
+  const { sdk, receive } = await host(t)
+  const events = []
+  const remove = sdk.onFileDrop(event => events.push(event))
+  const send = params => receive({ jsonrpc: '2.0', method: 'host.filesDrop', params })
+  send({ type: 'drop', position: { x: 10, y: 20 }, paths: ['song.wav'] })
+  send({ type: 'drop', position: { x: '10', y: 20 }, paths: ['song.wav'] })
+  send({ type: 'drop', position: { x: 10, y: 20 }, paths: [42] })
+  assert.equal(events.length, 1)
+  send({ type: 'leave' }); assert.equal(events.length, 2)
+  remove(); send({ type: 'leave' }); assert.equal(events.length, 2)
+})
+
 test('log overlays wait for the promoted viewport and keep the form anchored until it returns', async t => {
   const { sdk, receive, calls, window, resize, classes, properties } = await host(t)
   let opened = false

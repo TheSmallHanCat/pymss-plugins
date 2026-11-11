@@ -9,6 +9,7 @@ import { useSettingsStore } from '@/stores/settings'
 import AudioToolPanel from '@/features/audio-tools/shared/AudioToolPanel.vue'
 import AudioToolHeader from '@/features/audio-tools/shared/AudioToolHeader.vue'
 import { useAudioToolRuntime } from '@/features/audio-tools/runtime'
+import { useAudioInputDrop } from '@/features/audio-tools/useAudioInputDrop'
 
 type ScanResult = { files: string[]; warnings: string[] }
 const { t } = useI18n()
@@ -51,17 +52,18 @@ async function pickFolder() {
 }
 async function pickOutput() { const value = await invoke<string | null>('pick_output_folder'); if (value) outputDir.value = value }
 function run() { void runtime.execute('convert', { inputs: inputs.value, outputDir: outputDir.value, outputFormat: outputFormat.value, sampleRate: sampleRate.value, channels: channels.value, wavBitDepth: wavBitDepth.value, flacBitDepth: flacBitDepth.value, mp3BitRate: mp3BitRate.value, oggBitRate: oggBitRate.value }) }
+const { dropZone: inputDropZone, dragging: inputDragging, scanning: inputScanning } = useAudioInputDrop({ disabled: () => state.value.anyBusy, accept: addInputs })
 </script>
 <template>
   <AudioToolPanel tool="convert" :status-title="t('tools.processingResult')" :status-hint="t('tools.convertHint')">
     <AudioToolHeader :icon="SwapHorizontalOutline" :title="t('tools.convertTitle')" :description="t('tools.convertDescription')" />
-    <div data-guide="tool-input" class="audio-tool-field"><div class="audio-tool-field-heading"><label>{{ t('tools.inputFiles') }}</label><span>{{ t('tools.selectedCount', { count: inputs.length }) }}</span></div>
-      <div class="audio-tool-picker-grid"><button class="audio-tool-picker" :disabled="state.anyBusy" @click="pickFiles"><n-icon :component="DocumentOutline" size="20" />{{ inputs.length ? t('tools.addFiles') : t('tools.chooseFiles') }}</button><button class="audio-tool-picker" :disabled="state.anyBusy" @click="pickFolder"><n-icon :component="FolderOpenOutline" size="20" />{{ t('tools.addInputFolder') }}</button></div>
+    <div ref="inputDropZone" :class="{ 'audio-tool-drop--active': inputDragging }" :aria-busy="inputScanning" data-guide="tool-input" class="audio-tool-field"><div class="audio-tool-field-heading"><label>{{ t('tools.inputFiles') }}</label><span>{{ t('tools.selectedCount', { count: inputs.length }) }}</span></div>
+      <div class="audio-tool-picker-grid"><button class="audio-tool-picker" :disabled="state.anyBusy || inputScanning" @click="pickFiles"><n-icon :component="DocumentOutline" size="20" />{{ inputs.length ? t('tools.addFiles') : t('tools.chooseFiles') }}</button><button class="audio-tool-picker" :disabled="state.anyBusy || inputScanning" @click="pickFolder"><n-icon :component="FolderOpenOutline" size="20" />{{ t('tools.addInputFolder') }}</button></div>
       <div v-if="inputs.length" class="audio-tool-files"><div v-for="path in inputs" :key="path"><span :title="path">{{ fileName(path) }}</span><button :title="t('tools.removeFile')" :disabled="state.anyBusy" @click="inputs = inputs.filter(item => item !== path)"><n-icon :component="CloseCircleOutline" /></button></div></div>
     </div>
     <div class="audio-tool-field"><label>{{ t('tools.outputDirectory') }}</label><div class="audio-tool-path"><n-input :value="outputDir" readonly :placeholder="t('tools.chooseOutputDirectory')" /><n-button secondary :disabled="state.anyBusy" @click="pickOutput"><template #icon><n-icon :component="FolderOpenOutline" /></template>{{ t('common.browse') }}</n-button></div></div>
     <div class="audio-tool-grid audio-tool-grid--four"><div class="audio-tool-field"><label>{{ t('tools.outputFormat') }}</label><n-select v-model:value="outputFormat" :options="formatOptions" :disabled="state.anyBusy" /></div><div class="audio-tool-field"><label>{{ t('tools.sampleRate') }}</label><n-select v-model:value="sampleRate" :options="sampleRateOptions" :disabled="state.anyBusy" /></div><div class="audio-tool-field"><label>{{ t('tools.channels') }}</label><n-select v-model:value="channels" :options="channelOptions" :disabled="state.anyBusy" /></div><div class="audio-tool-field"><label>{{ t('tools.quality') }}</label><n-select v-if="outputFormat === 'wav'" v-model:value="wavBitDepth" :options="wavOptions" :disabled="state.anyBusy" /><n-select v-else-if="outputFormat === 'flac'" v-model:value="flacBitDepth" :options="flacOptions" :disabled="state.anyBusy" /><n-select v-else-if="outputFormat === 'mp3'" v-model:value="mp3BitRate" :options="mp3Options" :disabled="state.anyBusy" /><n-select v-else v-model:value="oggBitRate" :options="oggOptions" :disabled="state.anyBusy" /></div></div>
     <n-alert v-if="channels === 2" type="info" :bordered="false">{{ t('tools.stereoFromMonoHint') }}</n-alert>
-    <div class="audio-tool-actions"><n-button type="primary" :loading="state.busy" :disabled="state.anyBusy || !inputs.length || !outputDir" @click="run">{{ t('tools.startConvert') }}</n-button></div>
+    <div class="audio-tool-actions"><n-button type="primary" :loading="state.busy" :disabled="state.anyBusy || inputScanning || !inputs.length || !outputDir" @click="run">{{ t('tools.startConvert') }}</n-button></div>
   </AudioToolPanel>
 </template>

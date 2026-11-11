@@ -19,6 +19,7 @@ function slicer() {
       'naive-ui': { useMessage: () => ({ error() {} }) },
       '@/stores/settings': { useSettingsStore: () => ({ outputDir: '/output' }) },
       '@/features/audio-tools/runtime': { useAudioToolRuntime: () => ({ stateFor: () => ({}), execute: (...args) => calls.push(args) }) },
+      '@/features/audio-tools/useAudioInputDrop': { useAudioInputDrop: () => ({ dropZone: { value: null }, dragging: { value: false }, scanning: { value: false } }) },
     })[name] || {},
   })
   return { ...exports, values, calls }
