@@ -5,7 +5,9 @@ import os
 import re
 import sys
 from contextlib import redirect_stderr
+from contextvars import copy_context
 from pathlib import Path
+from threading import RLock
 from typing import Any, TextIO
 
 from pymss.plugins.kit import emit, isolate_stdout as isolate_protocol_stdout
@@ -187,6 +189,8 @@ class _ModelLoadOutput:
 
     def __init__(self, fallback: TextIO) -> None:
         self._fallback = fallback
+        self._context = copy_context()
+        self._lock = RLock()
         self._last_progress: tuple[str, int] | None = None
         self.observed_model_ids: set[str] = set()
         self.failed_model_ids: set[str] = set()
@@ -212,23 +216,27 @@ class _ModelLoadOutput:
             self.disk_full = self.disk_full or "no space left on device" in lowered
 
     def write(self, value: str) -> int:
-        handled = False
-        for line in re.split(r"[\r\n]+", value):
-            self._observe(line)
-            progress = _parse_model_download_progress(line)
-            if not progress:
-                continue
-            handled = True
-            marker = (str(progress["current"]), int(progress["completed"]))
-            if marker != self._last_progress:
-                self._last_progress = marker
-                emit("audio_tool_progress", progress)
-        if not handled:
-            self._fallback.write(value)
-        return len(value)
+        # ModelScope refreshes download bars from multiple worker threads.
+        # Re-enter the originating operation context one writer at a time.
+        with self._lock:
+            handled = False
+            for line in re.split(r"[\r\n]+", value):
+                self._observe(line)
+                progress = _parse_model_download_progress(line)
+                if not progress:
+                    continue
+                handled = True
+                marker = (str(progress["current"]), int(progress["completed"]))
+                if marker != self._last_progress:
+                    self._context.run(emit, "audio_tool_progress", progress)
+                    self._last_progress = marker
+            if not handled:
+                self._fallback.write(value)
+            return len(value)
 
     def flush(self) -> None:
-        self._fallback.flush()
+        with self._lock:
+            self._fallback.flush()
 
 
 def _model_cache_id(model_id: str) -> str:
